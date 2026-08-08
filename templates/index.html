@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hamar Bazar — Location Manager (Takhatpur)</title>
+    <meta name="description" content="Admin Map-based Location Manager for Hamar Bazar in Takhatpur. Manage Shops, Users, and Orders on an interactive map.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet CSS (Fallback map engine) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Custom CSS with cache buster v6 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=6">
+</head>
+<body class="dark-theme">
+    <!-- App Container -->
+    <div class="app-layout">
+        
+        <!-- Header / Top Bar -->
+        <header class="top-bar">
+            <div class="brand-section">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-map-location-dot"></i>
+                </div>
+                <div class="brand-title">
+                    <h1>Hamar Bazar <span>Location Manager</span></h1>
+                    <div class="location-badge">
+                        <i class="fa-solid fa-location-crosshairs"></i>
+                        <span>Takhatpur Admin Map</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="search-container">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="search-input" placeholder="Search Shop, User, or Order..." autocomplete="off">
+                    <button id="clear-search-btn" class="hidden-btn"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div id="search-results-dropdown" class="search-results-dropdown hidden"></div>
+            </div>
+
+            <!-- Filter Controls -->
+            <div class="filter-controls">
+                <label class="filter-chip shop-chip active">
+                    <input type="checkbox" id="filter-shop" checked>
+                    <span class="chip-dot shop-dot"></span>
+                    <span class="chip-text">Tie-Up Shops</span>
+                    <span class="chip-count" id="count-shops">0</span>
+                </label>
+                <label class="filter-chip user-chip active">
+                    <input type="checkbox" id="filter-user" checked>
+                    <span class="chip-dot user-dot"></span>
+                    <span class="chip-text">App Users</span>
+                    <span class="chip-count" id="count-users">0</span>
+                </label>
+                <label class="filter-chip order-chip active">
+                    <input type="checkbox" id="filter-order" checked>
+                    <span class="chip-dot order-dot"></span>
+                    <span class="chip-text">Orders</span>
+                    <span class="chip-count" id="count-orders">0</span>
+                </label>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="header-actions">
+                <button id="add-location-btn" class="btn btn-emerald">
+                    <i class="fa-solid fa-plus"></i> Add Location
+                </button>
+                <button id="api-key-btn" class="btn btn-outline" title="Google Maps Key Settings">
+                    <i class="fa-solid fa-key"></i> <span id="key-status-label">API Key</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="main-workspace">
+            
+            <!-- Map Container -->
+            <div class="map-wrapper">
+                <div id="map" class="map-container"></div>
+                
+                <!-- Map Banner Notification -->
+                <div id="map-engine-banner" class="map-engine-banner">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span id="map-engine-text">Initializing map...</span>
+                </div>
+
+                <!-- Add Location Banner Mode -->
+                <div id="add-mode-banner" class="add-mode-banner hidden">
+                    <div class="banner-content">
+                        <i class="fa-solid fa-hand-pointer pulse-icon"></i>
+                        <span>Click anywhere on Takhatpur map to add a Tie-up Shop or App User!</span>
+                    </div>
+                    <button id="cancel-add-mode-btn" class="btn btn-sm btn-danger">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Detail Drawer / Sidebar -->
+            <aside id="detail-drawer" class="detail-drawer hidden">
+                <button id="close-drawer-btn" class="close-drawer-btn"><i class="fa-solid fa-xmark"></i></button>
+                <div id="drawer-content" class="drawer-content">
+                    <!-- Dynamic details injected here -->
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Modals -->
+
+    <!-- Modal 1: Choose Location Type Modal -->
+    <div id="type-select-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-map-pin"></i> Select Location Type</h3>
+                <button class="modal-close-btn" onclick="closeModal('type-select-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-subtitle">Selected Coordinates: <strong id="selected-coords-display">0.0, 0.0</strong></p>
+                <div class="type-selection-grid">
+                    <button class="type-card" onclick="openAddShopModal()">
+                        <div class="type-card-icon shop-icon"><i class="fa-solid fa-store"></i></div>
+                        <h4>New Tie-Up Shop</h4>
+                        <p>Add a new partner shop at this location</p>
+                    </button>
+                    <button class="type-card" onclick="openAddNewUserModal()">
+                        <div class="type-card-icon user-icon"><i class="fa-solid fa-user-plus"></i></div>
+                        <h4>New App User</h4>
+                        <p>Mark a new customer & set order count</p>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Add Shop Form Modal -->
+    <div id="add-shop-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-store"></i> Add New Tie-Up Shop</h3>
+                <button class="modal-close-btn" onclick="closeModal('add-shop-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="add-shop-form" onsubmit="submitNewShop(event)">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="shop-name">Shop Name <span class="req">*</span></label>
+                            <input type="text" id="shop-name" required placeholder="e.g. Sharma Kirana Store">
+                        </div>
+                        <div class="form-group">
+                            <label for="shop-owner">Owner Name <span class="req">*</span></label>
+                            <input type="text" id="shop-owner" required placeholder="e.g. Ramesh Sharma">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="shop-mobile">Mobile Number <span class="req">*</span></label>
+                            <input type="tel" id="shop-mobile" required placeholder="e.g. 9827100000">
+                        </div>
+                        <div class="form-group">
+                            <label for="shop-category">Category <span class="req">*</span></label>
+                            <select id="shop-category" required>
+                                <option value="Kirana & Grocery">Kirana & Grocery</option>
+                                <option value="Sweets & Bakery">Sweets & Bakery</option>
+                                <option value="Electronics & Mobiles">Electronics & Mobiles</option>
+                                <option value="Pharmacy & Medical">Pharmacy & Medical</option>
+                                <option value="Vegetables & Fruits">Vegetables & Fruits</option>
+                                <option value="Clothing & Garments">Clothing & Garments</option>
+                                <option value="Restaurant & Food">Restaurant & Food</option>
+                                <option value="Hardware & Building">Hardware & Building</option>
+                                <option value="Other Store">Other Store</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="shop-partner-status">Tie-Up Partner Status</label>
+                        <select id="shop-partner-status">
+                            <option value="Verified Partner">Verified Partner</option>
+                            <option value="Gold Partner">Gold Partner</option>
+                            <option value="Platinum Tie-Up">Platinum Tie-Up</option>
+                            <option value="Pending Tie-up">Pending Tie-up</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="shop-lat">Latitude</label>
+                            <input type="number" step="any" id="shop-lat" readonly class="readonly-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="shop-lng">Longitude</label>
+                            <input type="number" step="any" id="shop-lng" readonly class="readonly-input">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('add-shop-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-emerald"><i class="fa-solid fa-check"></i> Save Tie-Up Shop</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 3: Add New App User Modal -->
+    <div id="add-new-user-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-user-plus"></i> Mark New App User Location</h3>
+                <button class="modal-close-btn" onclick="closeModal('add-new-user-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="add-new-user-form" onsubmit="submitNewUser(event)">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="new-user-name">Customer Name <span class="req">*</span></label>
+                            <input type="text" id="new-user-name" required placeholder="e.g. Ramesh Patel">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-user-mobile">Mobile Number <span class="req">*</span></label>
+                            <input type="tel" id="new-user-mobile" required placeholder="e.g. 9827100000">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="new-user-orders">Total Orders Placed <span class="req">*</span></label>
+                            <input type="number" id="new-user-orders" value="1" min="0" required placeholder="e.g. 3">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-user-address">Address / Landmark</label>
+                            <input type="text" id="new-user-address" placeholder="e.g. Main Road, Ward 4, Takhatpur">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="new-user-lat">Latitude</label>
+                            <input type="number" step="any" id="new-user-lat" readonly class="readonly-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-user-lng">Longitude</label>
+                            <input type="number" step="any" id="new-user-lng" readonly class="readonly-input">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('add-new-user-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-blue"><i class="fa-solid fa-check"></i> Save User Location</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 4: API Key Settings Modal -->
+    <div id="api-key-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-key"></i> Google Maps API Settings</h3>
+                <button class="modal-close-btn" onclick="closeModal('api-key-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="api-key-form" onsubmit="submitApiKey(event)">
+                <div class="modal-body">
+                    <p class="modal-subtitle">Apni Google Maps JavaScript API Key yahan paste karein.</p>
+                    <div class="form-group">
+                        <label for="gmap-api-key">Google Maps API Key</label>
+                        <input type="text" id="gmap-api-key" placeholder="AIzaSy..." value="{{ config.google_maps_api_key }}">
+                    </div>
+                    <div class="info-alert">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>System automatic fallback ke saath active hai taaki Takhatpur town map aur sabhi markers hamesha 100% visible rahein!</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('api-key-modal')">Close</button>
+                    <button type="submit" class="btn btn-emerald"><i class="fa-solid fa-floppy-disk"></i> Save & Apply</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Inject initial Config -->
+    <script>
+        window.APP_CONFIG = {
+            googleMapsApiKey: "{{ config.google_maps_api_key }}",
+            centerLat: {{ config.center_lat }},
+            centerLng: {{ config.center_lng }},
+            defaultZoom: {{ config.default_zoom }},
+            areaName: "{{ config.area_name }}"
+        };
+    </script>
+    
+    <!-- Leaflet JS (Fallback engine) -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- App JS with cache buster v6 -->
+    <script src="{{ url_for('static', filename='js/map.js') }}?v=6"></script>
+</body>
+</html>
