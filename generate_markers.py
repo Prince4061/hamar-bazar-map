@@ -68,8 +68,8 @@ def draw_symbol(draw, symbol_type, color):
 
 if __name__ == '__main__':
     out_dir = os.path.join(os.path.dirname(__file__), 'static', 'markers')
-    # Electric Cyan glow for shop (Tie-up Stores)
-    create_glowing_pin_marker(os.path.join(out_dir, 'shop.png'), (6, 182, 212, 255), 'shop', (6, 182, 212, 190))
+    # Vivid Crimson Red glow for shop (Tie-up Stores)
+    create_glowing_pin_marker(os.path.join(out_dir, 'shop.png'), (239, 68, 68, 255), 'shop', (239, 68, 68, 190))
     # Standard user / Normal Customer (Electric Blue)
     create_glowing_pin_marker(os.path.join(out_dir, 'user.png'), (59, 130, 246, 255), 'user', (59, 130, 246, 180))
     create_glowing_pin_marker(os.path.join(out_dir, 'user_normal.png'), (59, 130, 246, 255), 'user_normal', (59, 130, 246, 180))
