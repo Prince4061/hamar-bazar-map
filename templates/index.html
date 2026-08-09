@@ -72,6 +72,12 @@
                 <button id="add-location-btn" class="btn btn-emerald">
                     <i class="fa-solid fa-plus"></i> Add Location
                 </button>
+                <button id="download-db-btn" class="btn btn-outline" title="Download Database Backup (.db)">
+                    <i class="fa-solid fa-download"></i> Backup DB
+                </button>
+                <button id="upload-db-btn" class="btn btn-outline" title="Restore Database Backup (.db / .json)">
+                    <i class="fa-solid fa-upload"></i> Restore DB
+                </button>
                 <button id="api-key-btn" class="btn btn-outline" title="Google Maps Key Settings">
                     <i class="fa-solid fa-key"></i> <span id="key-status-label">API Key</span>
                 </button>
@@ -294,6 +300,33 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline" onclick="closeModal('api-key-modal')">Close</button>
                     <button type="submit" class="btn btn-emerald"><i class="fa-solid fa-floppy-disk"></i> Save & Apply</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 5: Restore Database Modal -->
+    <div id="restore-db-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-database"></i> Restore Database Backup</h3>
+                <button class="close-modal-btn" onclick="closeModal('restore-db-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="restore-db-form" onsubmit="submitRestoreDb(event)">
+                <div class="modal-body">
+                    <p class="modal-subtitle">Apni saved <strong>.db</strong> ya <strong>.json</strong> backup file upload karke database restore karein.</p>
+                    <div class="form-group" style="margin-top:14px;">
+                        <label for="db-file-input">Select Backup File (.db / .json):</label>
+                        <input type="file" id="db-file-input" accept=".db,.sqlite,.sqlite3,.json" required style="padding:10px;">
+                    </div>
+                    <div class="info-alert" style="margin-top:14px;">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>Upload hone ke baad saari shops, users (Normal, Active, Premium) aur orders wapas restore ho jayenge!</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('restore-db-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-emerald"><i class="fa-solid fa-file-import"></i> Upload & Restore</button>
                 </div>
             </form>
         </div>

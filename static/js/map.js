@@ -735,12 +735,64 @@ function changeOrderStatus(orderId, newStatus) {
     });
 }
 
+// ----------------- DB BACKUP & RESTORE HANDLERS -----------------
+
+function downloadDbBackup() {
+    showToast("Downloading Database Backup (.db)...");
+    window.location.href = '/api/db/download';
+}
+
+function openRestoreDbModal() {
+    const fileInput = document.getElementById('db-file-input');
+    if (fileInput) fileInput.value = '';
+    openModal('restore-db-modal');
+}
+
+function submitRestoreDb(e) {
+    e.preventDefault();
+    const fileInput = document.getElementById('db-file-input');
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        showToast("Please select a .db or .json file to restore", "error");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    showToast("Uploading and restoring database...");
+
+    fetch('/api/db/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showToast("Database restored successfully!");
+            closeModal('restore-db-modal');
+            fetchMapLocations();
+        } else {
+            showToast(data.message || "Failed to restore database", "error");
+        }
+    })
+    .catch(err => {
+        console.error("Error restoring database:", err);
+        showToast("Error restoring database: " + err.message, "error");
+    });
+}
+
 // ----------------- SEARCH & FILTERS -----------------
 
 function setupEventListeners() {
     document.getElementById('add-location-btn').addEventListener('click', toggleAddLocationMode);
     document.getElementById('cancel-add-mode-btn').addEventListener('click', toggleAddLocationMode);
     document.getElementById('api-key-btn').addEventListener('click', () => openModal('api-key-modal'));
+    
+    const downloadBtn = document.getElementById('download-db-btn');
+    if (downloadBtn) downloadBtn.addEventListener('click', downloadDbBackup);
+    
+    const uploadBtn = document.getElementById('upload-db-btn');
+    if (uploadBtn) uploadBtn.addEventListener('click', openRestoreDbModal);
 
     ['filter-shop', 'filter-user', 'filter-order'].forEach(id => {
         document.getElementById(id).addEventListener('change', (e) => {

@@ -1,7 +1,8 @@
 import os
 import sqlite3
 import json
-from flask import Flask, render_template, request, jsonify, session
+import datetime
+from flask import Flask, render_template, request, jsonify, session, send_file
 
 app = Flask(__name__)
 app.secret_key = 'hamar_bazar_admin_secret_key_takhatpur'
@@ -610,6 +611,136 @@ def search_locations():
         
     conn.close()
     return jsonify(results)
+
+# ----------------- DB BACKUP & RESTORE ROUTES -----------------
+
+@app.route('/api/db/download', methods=['GET'])
+def download_db():
+    try:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"hamar_bazar_backup_{timestamp}.db"
+        return send_file(DB_FILE, as_attachment=True, download_name=filename, mimetype='application/x-sqlite3')
+    except Exception as e:
+        print("Error downloading database:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/db/export-json', methods=['GET'])
+def export_db_json():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT * FROM shops")
+        shops = [dict(r) for r in cursor.fetchall()]
+        
+        cursor.execute("SELECT * FROM users")
+        users = [dict(r) for r in cursor.fetchall()]
+        
+        cursor.execute("SELECT * FROM orders")
+        orders = [dict(r) for r in cursor.fetchall()]
+        
+        conn.close()
+        
+        backup_data = {
+            "exported_at": datetime.datetime.now().isoformat(),
+            "shops": shops,
+            "users": users,
+            "orders": orders
+        }
+        
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"hamar_bazar_backup_{timestamp}.json"
+        
+        response = jsonify(backup_data)
+        response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+        return response
+    except Exception as e:
+        print("Error exporting JSON database:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/db/upload', methods=['POST'])
+def upload_db():
+    if 'file' not in request.files:
+        return jsonify({"status": "error", "message": "No file uploaded"}), 400
+        
+    uploaded_file = request.files['file']
+    if not uploaded_file or uploaded_file.filename == '':
+        return jsonify({"status": "error", "message": "Selected file is empty"}), 400
+        
+    fname = uploaded_file.filename.lower()
+    
+    try:
+        if fname.endswith('.json'):
+            content = json.load(uploaded_file)
+            shops = content.get('shops', [])
+            users = content.get('users', [])
+            orders = content.get('orders', [])
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("DELETE FROM orders")
+            cursor.execute("DELETE FROM shops")
+            cursor.execute("DELETE FROM users")
+            
+            for s in shops:
+                cursor.execute('''
+                    INSERT INTO shops (id, name, owner_name, mobile, category, is_partner, partner_status, latitude, longitude)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (s.get('id'), s['name'], s.get('owner_name', ''), s.get('mobile', ''), s.get('category', 'General'), s.get('is_partner', 1), s.get('partner_status', 'Verified Partner'), s['latitude'], s['longitude']))
+                
+            for u in users:
+                cursor.execute('''
+                    INSERT INTO users (id, name, mobile, address, manual_order_count, latitude, longitude)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (u.get('id'), u['name'], u.get('mobile', ''), u.get('address', ''), u.get('manual_order_count', 0), u.get('latitude'), u.get('longitude')))
+                
+            for o in orders:
+                cursor.execute('''
+                    INSERT INTO orders (id, user_id, shop_id, amount, status, delivery_latitude, delivery_longitude)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (o.get('id'), o.get('user_id'), o.get('shop_id'), o['amount'], o.get('status', 'pending'), o['delivery_latitude'], o['delivery_longitude']))
+                
+            conn.commit()
+            conn.close()
+            
+            return jsonify({"status": "success", "message": "JSON Database restored successfully!"})
+            
+        elif fname.endswith(('.db', '.sqlite', '.sqlite3')):
+            temp_path = os.path.join(os.path.dirname(__file__), 'temp_upload.db')
+            uploaded_file.save(temp_path)
+            
+            test_conn = sqlite3.connect(temp_path)
+            test_cursor = test_conn.cursor()
+            test_cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = [t[0] for t in test_cursor.fetchall()]
+            test_conn.close()
+            
+            if 'shops' not in tables and 'users' not in tables:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                return jsonify({"status": "error", "message": "Uploaded file is not a valid Hamar Bazar SQLite database"}), 400
+                
+            if os.path.exists(DB_FILE):
+                try:
+                    os.remove(DB_FILE)
+                except Exception as ex:
+                    print("Remove warning:", ex)
+                    
+            if os.path.exists(temp_path):
+                import shutil
+                shutil.copyfile(temp_path, DB_FILE)
+                os.remove(temp_path)
+            
+            init_db(reset=False)
+            
+            return jsonify({"status": "success", "message": "SQLite Database file restored successfully!"})
+        else:
+            return jsonify({"status": "error", "message": "Invalid file format. Please upload a .db or .json file"}), 400
+            
+    except Exception as e:
+        print("Error restoring database:", e)
+        return jsonify({"status": "error", "message": f"Restore failed: {str(e)}"}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
