@@ -2,7 +2,7 @@ import os
 import sqlite3
 import json
 import datetime
-from flask import Flask, render_template, request, jsonify, session, send_file
+from flask import Flask, render_template, request, jsonify, session, send_file, make_response
 
 app = Flask(__name__)
 app.secret_key = 'hamar_bazar_admin_secret_key_takhatpur'
@@ -315,10 +315,7 @@ def get_map_locations():
 
 @app.route('/rider')
 def rider_page():
-    response = make_response(render_template('rider.html'))
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    return response
+    return render_template('rider.html')
 
 @app.route('/api/riders', methods=['GET', 'POST'])
 def handle_riders():
