@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- PWA Manifest & Theme -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#8B5CF6">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Hamar Bazar — Delivery Boy Live GPS Tracker</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -295,10 +301,68 @@
         let currentSpeed = 0;
         let currentBattery = 100;
 
+        let wakeLock = null;
+        let audioCtx = null;
+
         document.addEventListener('DOMContentLoaded', () => {
             fetchRidersList();
             initBattery();
+            registerServiceWorker();
+            setupVisibilityListener();
         });
+
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/static/sw.js')
+                    .then(reg => console.log('ServiceWorker registered:', reg.scope))
+                    .catch(err => console.log('ServiceWorker error:', err));
+            }
+        }
+
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log("Screen WakeLock Active");
+                }
+            } catch (err) {
+                console.warn("WakeLock Error:", err);
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock) {
+                wakeLock.release().then(() => { wakeLock = null; });
+            }
+        }
+
+        function startBackgroundKeepAlive() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                gain.gain.value = 0.0001; // Silent / Inaudible loop
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+            } catch (e) {
+                console.log("Audio keep-alive note:", e);
+            }
+        }
+
+        function setupVisibilityListener() {
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && isDutyOn) {
+                    requestWakeLock();
+                    if (currentLat && currentLng) sendLocationToServer();
+                }
+            });
+        }
 
         function fetchRidersList() {
             fetch('/api/riders')
@@ -358,9 +422,11 @@
                 btn.className = 'duty-btn btn-stop';
                 btn.innerHTML = '<i class="fa-solid fa-stop"></i> END DUTY & STOP TRACKING';
                 statusBox.className = 'status-badge online';
-                statusText.innerText = 'ON DUTY (Sharing Live GPS Location)';
+                statusText.innerText = 'ON DUTY (Background Tracking Active 🔒)';
                 pulse.className = 'pulse-dot green';
 
+                requestWakeLock();
+                startBackgroundKeepAlive();
                 startGpsTracking();
             } else {
                 btn.className = 'duty-btn btn-start';
@@ -369,6 +435,7 @@
                 statusText.innerText = 'OFF DUTY (Location Sharing Disabled)';
                 pulse.className = 'pulse-dot red';
 
+                releaseWakeLock();
                 stopGpsTracking();
             }
         }
