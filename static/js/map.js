@@ -580,6 +580,45 @@ function deleteShop(shopId) {
     }
 }
 
+function openAddRiderModal() {
+    document.getElementById('rider-name').value = '';
+    document.getElementById('rider-mobile').value = '';
+    document.getElementById('rider-vehicle').value = '';
+    openModal('add-rider-modal');
+}
+
+function submitNewRider(e) {
+    e.preventDefault();
+    const name = document.getElementById('rider-name').value.trim();
+    const mobile = document.getElementById('rider-mobile').value.trim();
+    const vehicle_number = document.getElementById('rider-vehicle').value.trim();
+
+    if (!name || !mobile) {
+        showToast("Rider name and mobile are required", "error");
+        return;
+    }
+
+    fetch('/api/riders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, mobile, vehicle_number })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showToast(`Delivery Rider ${name} added successfully!`);
+            closeModal('add-rider-modal');
+            fetchMapLocations();
+        } else {
+            showToast(data.message || "Error adding delivery rider", "error");
+        }
+    })
+    .catch(err => {
+        console.error("Error adding rider:", err);
+        showToast("Error adding rider: " + err.message, "error");
+    });
+}
+
 function deleteRider(riderId) {
     if (confirm("Are you sure you want to delete this delivery rider location?")) {
         fetch(`/api/riders/${riderId}`, { method: 'DELETE' })

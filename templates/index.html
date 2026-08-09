@@ -78,6 +78,9 @@
                 <button id="add-location-btn" class="btn btn-emerald">
                     <i class="fa-solid fa-plus"></i> Add Location
                 </button>
+                <button id="add-rider-btn" onclick="openAddRiderModal()" class="btn btn-outline" title="Add New Delivery Rider Name">
+                    <i class="fa-solid fa-user-plus"></i> Add Rider
+                </button>
                 <a href="/rider" target="_blank" class="btn btn-outline" style="text-decoration:none;" title="Delivery Boy Mobile GPS Tracker App">
                     <i class="fa-solid fa-motorcycle"></i> Rider App
                 </a>
@@ -344,6 +347,37 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline" onclick="closeModal('restore-db-modal')">Cancel</button>
                     <button type="submit" class="btn btn-emerald"><i class="fa-solid fa-file-import"></i> Upload & Restore</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Add Delivery Rider -->
+    <div id="add-rider-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-motorcycle"></i> Add New Delivery Rider</h3>
+                <button class="close-modal-btn" onclick="closeModal('add-rider-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="add-rider-form" onsubmit="submitNewRider(event)">
+                <div class="modal-body">
+                    <p class="modal-subtitle">Naya delivery boy add karein taaki wo <code>/rider</code> mobile page par select hokar live location share kar sakein.</p>
+                    <div class="form-group" style="margin-top:14px;">
+                        <label for="rider-name">Rider Name <span class="req">*</span></label>
+                        <input type="text" id="rider-name" placeholder="e.g. Ramesh Kumar" required style="padding:10px; width:100%; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:#fff;">
+                    </div>
+                    <div class="form-group" style="margin-top:10px;">
+                        <label for="rider-mobile">Mobile Number <span class="req">*</span></label>
+                        <input type="tel" id="rider-mobile" placeholder="e.g. 9876543210" required style="padding:10px; width:100%; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:#fff;">
+                    </div>
+                    <div class="form-group" style="margin-top:10px;">
+                        <label for="rider-vehicle">Vehicle / Bike Number</label>
+                        <input type="text" id="rider-vehicle" placeholder="e.g. CG 10 AB 1234" style="padding:10px; width:100%; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:#fff;">
+                    </div>
+                </div>
+                <div class="modal-footer" style="margin-top:16px;">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('add-rider-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-emerald"><i class="fa-solid fa-plus"></i> Save Rider</button>
                 </div>
             </form>
         </div>

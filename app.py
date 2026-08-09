@@ -739,13 +739,17 @@ def export_db_json():
         cursor.execute("SELECT * FROM orders")
         orders = [dict(r) for r in cursor.fetchall()]
         
+        cursor.execute("SELECT * FROM riders")
+        riders = [dict(r) for r in cursor.fetchall()]
+        
         conn.close()
         
         backup_data = {
             "exported_at": datetime.datetime.now().isoformat(),
             "shops": shops,
             "users": users,
-            "orders": orders
+            "orders": orders,
+            "riders": riders
         }
         
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -775,6 +779,7 @@ def upload_db():
             shops = content.get('shops', [])
             users = content.get('users', [])
             orders = content.get('orders', [])
+            riders = content.get('riders', [])
             
             conn = get_db_connection()
             cursor = conn.cursor()
@@ -782,6 +787,7 @@ def upload_db():
             cursor.execute("DELETE FROM orders")
             cursor.execute("DELETE FROM shops")
             cursor.execute("DELETE FROM users")
+            cursor.execute("DELETE FROM riders")
             
             for s in shops:
                 cursor.execute('''
@@ -801,10 +807,16 @@ def upload_db():
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''', (o.get('id'), o.get('user_id'), o.get('shop_id'), o['amount'], o.get('status', 'pending'), o['delivery_latitude'], o['delivery_longitude']))
                 
+            for r in riders:
+                cursor.execute('''
+                    INSERT INTO riders (id, name, mobile, vehicle_number, status, latitude, longitude, speed, battery)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (r.get('id'), r['name'], r.get('mobile', ''), r.get('vehicle_number', ''), r.get('status', 'online'), r.get('latitude', 22.1448), r.get('longitude', 81.8698), r.get('speed', 0), r.get('battery', 100)))
+                
             conn.commit()
             conn.close()
             
-            return jsonify({"status": "success", "message": "JSON Database restored successfully!"})
+            return jsonify({"status": "success", "message": "JSON Database with Riders restored successfully!"})
             
         elif fname.endswith(('.db', '.sqlite', '.sqlite3')):
             temp_path = os.path.join(os.path.dirname(__file__), 'temp_upload.db')
