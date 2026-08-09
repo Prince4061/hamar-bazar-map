@@ -848,11 +848,20 @@ def upload_db():
             
             return jsonify({"status": "success", "message": "SQLite Database file restored successfully!"})
         else:
-            return jsonify({"status": "error", "message": "Invalid file format. Please upload a .db or .json file"}), 400
+            return jsonify({"status": "error", "message": "Unsupported file format. Please upload .db or .json"}), 400
             
     except Exception as e:
-        print("Error restoring database:", e)
-        return jsonify({"status": "error", "message": f"Restore failed: {str(e)}"}), 500
+        print("Error uploading database:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/download-apk')
+def download_apk():
+    apk_path = os.path.join(os.path.dirname(__file__), 'static', 'downloads', 'HamarBazarRider.apk')
+    if os.path.exists(apk_path):
+        return send_file(apk_path, as_attachment=True, download_name="HamarBazarRider.apk", mimetype="application/vnd.android.package-archive")
+    else:
+        zip_path = os.path.join(os.path.dirname(__file__), 'static', 'downloads', 'HamarBazarRider_Android_Project.zip')
+        return send_file(zip_path, as_attachment=True, download_name="HamarBazarRider_Android_Project.zip")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

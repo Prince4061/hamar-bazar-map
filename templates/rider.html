@@ -263,9 +263,12 @@
             <h1>Hamar Bazar Delivery Tracker</h1>
             <p>Live GPS Duty & Location Sharing App</p>
 
-            <div style="margin-top: 14px;">
-                <button id="top-install-btn" onclick="installPwaApp()" class="install-pwa-top-btn">
-                    <i class="fa-solid fa-download"></i> 📲 CLICK HERE TO INSTALL APP ON PHONE
+            <div style="margin-top: 14px; display:flex; flex-direction:column; gap:10px;">
+                <a href="/download-apk" class="install-pwa-top-btn" style="text-decoration:none;" download>
+                    <i class="fa-solid fa-android"></i> 📥 DOWNLOAD ANDROID APK FILE (.apk)
+                </a>
+                <button id="top-install-btn" onclick="installPwaApp()" class="install-pwa-top-btn" style="background:linear-gradient(135deg, #8B5CF6, #6D28D9);">
+                    <i class="fa-solid fa-download"></i> 📲 INSTALL APP ON PHONE
                 </button>
             </div>
         </div>
