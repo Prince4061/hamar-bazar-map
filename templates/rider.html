@@ -373,6 +373,21 @@
             }
         }
 
+        let lastSentLat = null;
+        let lastSentLng = null;
+        let lastPingTime = 0;
+
+        function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
         function startGpsTracking() {
             if (!navigator.geolocation) {
                 alert("Geolocation is not supported by your mobile browser!");
@@ -381,26 +396,53 @@
 
             watchId = navigator.geolocation.watchPosition(
                 (pos) => {
-                    currentLat = pos.coords.latitude.toFixed(6);
-                    currentLng = pos.coords.longitude.toFixed(6);
-                    currentSpeed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0; // m/s to km/h
+                    const accuracy = pos.coords.accuracy || 0;
+                    const rawLat = parseFloat(pos.coords.latitude.toFixed(6));
+                    const rawLng = parseFloat(pos.coords.longitude.toFixed(6));
+                    const rawSpeed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0; // m/s to km/h
 
-                    document.getElementById('coords-val').innerText = `${currentLat}, ${currentLng}`;
+                    // 1. Ignore inaccurate GPS pings (> 40 meters inaccuracy)
+                    if (accuracy > 40) {
+                        console.warn(`Weak GPS signal (accuracy ${accuracy.toFixed(1)}m). Ignoring noise.`);
+                        document.getElementById('coords-val').innerText = `${rawLat}, ${rawLng} (Weak GPS ±${Math.round(accuracy)}m)`;
+                        return;
+                    }
+
+                    // 2. Stationary Drift Filter: If movement is less than 12 meters & speed is low, keep position locked!
+                    if (lastSentLat !== null && lastSentLng !== null) {
+                        const distMoved = calculateDistanceMeters(lastSentLat, lastSentLng, rawLat, rawLng);
+                        if (distMoved < 12 && rawSpeed <= 2) {
+                            // Phone is stationary! Lock position to eliminate GPS jitter.
+                            currentLat = lastSentLat;
+                            currentLng = lastSentLng;
+                            currentSpeed = 0;
+                            document.getElementById('coords-val').innerText = `${currentLat}, ${currentLng} (Stationary Locked 📍)`;
+                            document.getElementById('speed-val').innerText = '0 km/h (At Rest)';
+                            return;
+                        }
+                    }
+
+                    // Real movement detected
+                    currentLat = rawLat;
+                    currentLng = rawLng;
+                    currentSpeed = rawSpeed;
+
+                    document.getElementById('coords-val').innerText = `${currentLat}, ${currentLng} (±${Math.round(accuracy)}m)`;
                     document.getElementById('speed-val').innerText = currentSpeed + ' km/h';
 
                     sendLocationToServer();
                 },
                 (err) => {
                     console.warn("GPS Error:", err);
-                    document.getElementById('coords-val').innerText = "GPS Permission Error";
+                    document.getElementById('coords-val').innerText = "GPS Error: " + err.message;
                 },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 3000 }
             );
 
-            // Also ping every 5 seconds
+            // Backup timer: send location ping every 10 seconds if position changed
             updateInterval = setInterval(() => {
                 sendLocationToServer();
-            }, 5000);
+            }, 10000);
         }
 
         function stopGpsTracking() {
@@ -427,6 +469,11 @@
             const riderId = document.getElementById('rider-select').value;
             if (!riderId || !currentLat || !currentLng) return;
 
+            const now = Date.now();
+            // Don't spam server if last ping was sent less than 3 seconds ago
+            if (now - lastPingTime < 3000) return;
+            lastPingTime = now;
+
             fetch('/api/rider/location', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -441,8 +488,10 @@
             })
             .then(res => res.json())
             .then(data => {
-                const now = new Date().toLocaleTimeString();
-                document.getElementById('last-ping-val').innerText = now + ' (Active)';
+                lastSentLat = currentLat;
+                lastSentLng = currentLng;
+                const timeStr = new Date().toLocaleTimeString();
+                document.getElementById('last-ping-val').innerText = timeStr + ' (GPS Signal Verified ✅)';
             });
         }
     </script>

@@ -181,21 +181,60 @@ function updateCounts() {
 }
 
 function renderMarkers() {
-    clearAllMarkers();
-
     const showShop = document.getElementById('filter-shop').checked;
     const showUser = document.getElementById('filter-user').checked;
     const showOrder = document.getElementById('filter-order').checked;
     const showRider = document.getElementById('filter-rider') ? document.getElementById('filter-rider').checked : true;
 
-    allLocations.forEach(item => {
-        if (item.type === 'shop' && !showShop) return;
-        if (item.type === 'user' && !showUser) return;
-        if (item.type === 'order' && !showOrder) return;
-        if (item.type === 'rider' && !showRider) return;
-
-        createMarkerOnMap(item);
+    const visibleItems = allLocations.filter(item => {
+        if (item.type === 'shop' && !showShop) return false;
+        if (item.type === 'user' && !showUser) return false;
+        if (item.type === 'order' && !showOrder) return false;
+        if (item.type === 'rider' && !showRider) return false;
+        return true;
     });
+
+    const existingMap = new Map();
+    markerObjects.forEach(obj => {
+        const key = `${obj.item.type}_${obj.item.id}`;
+        existingMap.set(key, obj);
+    });
+
+    const newMarkerObjects = [];
+
+    visibleItems.forEach(item => {
+        const key = `${item.type}_${item.id}`;
+        const existing = existingMap.get(key);
+
+        if (existing) {
+            if (mapEngineType === 'leaflet') {
+                existing.marker.setLatLng([item.lat, item.lng]);
+            } else if (mapEngineType === 'google' && existing.marker) {
+                existing.marker.lat = item.lat;
+                existing.marker.lng = item.lng;
+                if (existing.marker.overlay && existing.marker.overlay.draw) {
+                    existing.marker.overlay.draw();
+                }
+            }
+            existing.item = item;
+            newMarkerObjects.push(existing);
+            existingMap.delete(key);
+        } else {
+            createMarkerOnMap(item);
+            const created = markerObjects[markerObjects.length - 1];
+            if (created) newMarkerObjects.push(created);
+        }
+    });
+
+    existingMap.forEach(obj => {
+        if (mapEngineType === 'leaflet') {
+            if (mapInstance && obj.marker) mapInstance.removeLayer(obj.marker);
+        } else if (mapEngineType === 'google') {
+            if (obj.marker && obj.marker.setMap) obj.marker.setMap(null);
+        }
+    });
+
+    markerObjects = newMarkerObjects;
 }
 
 function clearAllMarkers() {
