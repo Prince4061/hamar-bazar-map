@@ -328,13 +328,21 @@
             fetchRidersList();
             initBattery();
             setupVisibilityListener();
+            unregisterOldServiceWorkers();
         });
 
-        function registerServiceWorker() {
+        function unregisterOldServiceWorkers() {
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/static/sw.js')
-                    .then(reg => console.log('ServiceWorker registered:', reg.scope))
-                    .catch(err => console.log('ServiceWorker error:', err));
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let registration of registrations) {
+                        registration.unregister();
+                    }
+                });
+            }
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    for (let name of names) caches.delete(name);
+                });
             }
         }
 
