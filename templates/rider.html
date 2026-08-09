@@ -246,6 +246,14 @@
             <p>Live GPS Duty & Location Sharing App</p>
         </div>
 
+        <div id="pwa-install-card" class="card" style="background:linear-gradient(135deg, rgba(139,92,246,0.25), rgba(109,40,217,0.35)); border:1px solid rgba(139,92,246,0.6); text-align:center;">
+            <h3 style="font-size:15px; font-weight:700; color:#F9FAFB; margin-bottom:6px;"><i class="fa-solid fa-mobile-screen-button"></i> Install Rider Mobile App</h3>
+            <p style="font-size:12px; color:#E5E7EB; margin-bottom:12px; line-height:1.4;">Screen-off background GPS tracking ke liye app ko apne Phone Home Screen par install karein!</p>
+            <button onclick="installPwaApp()" class="duty-btn" style="background:linear-gradient(135deg, #8B5CF6, #6D28D9); padding:12px 18px; font-size:14px; width:100%;">
+                <i class="fa-solid fa-download"></i> INSTALL APP ON PHONE
+            </button>
+        </div>
+
         <div class="card">
             <div class="form-group">
                 <label for="rider-select"><i class="fa-solid fa-user-gear"></i> Select Your Delivery Name:</label>
@@ -310,6 +318,29 @@
             registerServiceWorker();
             setupVisibilityListener();
         });
+
+        let deferredPrompt = null;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const pwaCard = document.getElementById('pwa-install-card');
+            if (pwaCard) pwaCard.style.display = 'block';
+        });
+
+        function installPwaApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User installed Rider PWA App');
+                    }
+                    deferredPrompt = null;
+                });
+            } else {
+                alert("App Install karne ke liye:\n\n1. Chrome ke Top Right 3 Dots (Menu) par tap karein.\n2. 'Add to Home Screen' ya 'Install App' select karein!");
+            }
+        }
 
         function registerServiceWorker() {
             if ('serviceWorker' in navigator) {
