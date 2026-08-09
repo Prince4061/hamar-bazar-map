@@ -311,6 +311,19 @@ def get_map_locations():
     conn.close()
     return jsonify(locations)
 
+# ----------------- PWA MANIFEST & SERVICE WORKER ROUTES -----------------
+
+@app.route('/manifest-rider.json')
+def rider_manifest():
+    return send_file(os.path.join(os.path.dirname(__file__), 'static', 'manifest-rider.json'), mimetype='application/manifest+json')
+
+@app.route('/sw-rider.js')
+def rider_service_worker():
+    response = make_response(send_file(os.path.join(os.path.dirname(__file__), 'static', 'sw-rider.js'), mimetype='application/javascript'))
+    response.headers['Service-Worker-Allowed'] = '/'
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
+
 # ----------------- DELIVERY RIDER ROUTES -----------------
 
 @app.route('/rider')

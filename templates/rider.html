@@ -6,6 +6,13 @@
     <!-- Hamar Bazar Delivery Tracker -->
     <meta name="theme-color" content="#8B5CF6">
     <title>Hamar Bazar — Delivery Boy Live GPS Tracker</title>
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest-rider.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="HB Rider">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -260,8 +267,11 @@
             <p>Live GPS Duty & Location Sharing App</p>
 
             <div style="margin-top: 14px;">
-                <a href="/download-apk" class="install-pwa-top-btn" style="text-decoration:none;" download>
-                    <i class="fa-solid fa-android"></i> 🤖 📥 DOWNLOAD ANDROID APK FILE (.apk)
+                <button id="pwa-install-btn" class="install-pwa-top-btn" style="display:none;" onclick="installPWA()">
+                    <i class="fa-solid fa-download"></i> 📲 INSTALL APP ON PHONE
+                </button>
+                <a id="apk-download-btn" href="/download-apk" class="install-pwa-top-btn" style="text-decoration:none; margin-top:10px; display:none;" download>
+                    <i class="fa-solid fa-android"></i> 🤖 DOWNLOAD APK (Alternate)
                 </a>
             </div>
         </div>
@@ -323,26 +333,84 @@
 
         let wakeLock = null;
         let audioCtx = null;
+        let deferredInstallPrompt = null;
+
+        // Capture PWA install prompt BEFORE DOMContentLoaded
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            showInstallButton();
+            console.log('PWA install prompt captured!');
+        });
+
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA installed successfully!');
+            deferredInstallPrompt = null;
+            hideInstallButton();
+        });
+
+        function showInstallButton() {
+            const btn = document.getElementById('pwa-install-btn');
+            if (btn) {
+                btn.style.display = 'flex';
+            }
+            const apkBtn = document.getElementById('apk-download-btn');
+            if (apkBtn) apkBtn.style.display = 'none';
+        }
+
+        function hideInstallButton() {
+            const btn = document.getElementById('pwa-install-btn');
+            if (btn) btn.style.display = 'none';
+        }
+
+        async function installPWA() {
+            if (!deferredInstallPrompt) {
+                alert('Install option not available. Try opening this page in Chrome/Edge browser.');
+                return;
+            }
+            deferredInstallPrompt.prompt();
+            const result = await deferredInstallPrompt.userChoice;
+            console.log('PWA install result:', result.outcome);
+            if (result.outcome === 'accepted') {
+                deferredInstallPrompt = null;
+                hideInstallButton();
+            }
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchRidersList();
             initBattery();
             setupVisibilityListener();
-            unregisterOldServiceWorkers();
+            registerServiceWorker();
+            checkIfPWAInstalled();
         });
 
-        function unregisterOldServiceWorkers() {
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(registrations => {
-                    for (let registration of registrations) {
-                        registration.unregister();
-                    }
-                });
+        function checkIfPWAInstalled() {
+            // If running in standalone (already installed), hide install button
+            if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+                hideInstallButton();
+                return;
             }
-            if ('caches' in window) {
-                caches.keys().then(names => {
-                    for (let name of names) caches.delete(name);
-                });
+            // Show APK fallback if install prompt not available after 3 seconds
+            setTimeout(() => {
+                if (!deferredInstallPrompt) {
+                    const apkBtn = document.getElementById('apk-download-btn');
+                    if (apkBtn) apkBtn.style.display = 'flex';
+                }
+            }, 3000);
+        }
+
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw-rider.js', { scope: '/' })
+                    .then((reg) => {
+                        console.log('Rider Service Worker registered! Scope:', reg.scope);
+                        // Check for updates
+                        reg.update();
+                    })
+                    .catch((err) => {
+                        console.warn('SW registration failed:', err);
+                    });
             }
         }
 
