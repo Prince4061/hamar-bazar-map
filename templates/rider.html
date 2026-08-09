@@ -3,12 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- PWA Manifest & Theme -->
-    <link rel="manifest" href="/static/manifest.json">
+    <!-- Hamar Bazar Delivery Tracker -->
     <meta name="theme-color" content="#8B5CF6">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Hamar Bazar — Delivery Boy Live GPS Tracker</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -316,34 +312,6 @@
 
     </div>
 
-    <!-- Custom Install Guide Modal -->
-    <div id="install-guide-modal" class="modal-overlay hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px;">
-        <div style="background:#151C2C; border:1px solid rgba(139,92,246,0.5); border-radius:20px; width:100%; max-width:380px; padding:24px; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.8);">
-            <div style="width:56px; height:56px; background:linear-gradient(135deg, #10B981, #059669); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24px; margin:0 auto 14px; box-shadow:0 0 20px rgba(16,185,129,0.5);">
-                <i class="fa-solid fa-mobile-screen-button"></i>
-            </div>
-            <h3 style="font-family:'Outfit', sans-serif; font-size:18px; font-weight:800; color:#fff;">Install Rider App on Phone</h3>
-            <p style="font-size:13px; color:#9CA3AF; margin-top:6px; line-height:1.5;">
-                App ko phone me install karne ke liye:
-            </p>
-
-            <div style="background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:14px; margin:16px 0; text-align:left; font-size:13px; color:#E5E7EB; display:flex; flex-direction:column; gap:10px;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="background:#8B5CF6; color:#fff; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; flex-shrink:0;">1</span>
-                    <span>Chrome ke Top Right <strong>3 Dots (<i class="fa-solid fa-ellipsis-vertical"></i>)</strong> par tap karein</span>
-                </div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="background:#10B981; color:#fff; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; flex-shrink:0;">2</span>
-                    <span><strong>"<i class="fa-solid fa-download"></i> Install and create shortcut"</strong> par tap karein</span>
-                </div>
-            </div>
-
-            <button onclick="closeInstallGuideModal()" class="duty-btn btn-start" style="width:100%; padding:12px; font-size:14px; justify-content:center;">
-                <i class="fa-solid fa-check"></i> Got It / Close
-            </button>
-        </div>
-    </div>
-
     <script>
         let isDutyOn = false;
         let watchId = null;
@@ -359,58 +327,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchRidersList();
             initBattery();
-            registerServiceWorker();
             setupVisibilityListener();
         });
-
-        let deferredPrompt = null;
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            const topBtn = document.getElementById('top-install-btn');
-            if (topBtn) {
-                topBtn.innerHTML = '<i class="fa-solid fa-download"></i> 📲 CLICK HERE TO INSTALL APP ON PHONE';
-            }
-        });
-
-        // Check if already running in standalone PWA installed app mode
-        window.addEventListener('DOMContentLoaded', () => {
-            if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-                const topBtn = document.getElementById('top-install-btn');
-                if (topBtn) {
-                    topBtn.style.background = 'rgba(16, 185, 129, 0.2)';
-                    topBtn.style.border = '1px solid rgba(16, 185, 129, 0.5)';
-                    topBtn.style.color = '#34D399';
-                    topBtn.style.animation = 'none';
-                    topBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> ✅ Rider App Installed & Active';
-                    topBtn.onclick = null;
-                }
-            }
-        });
-
-        function installPwaApp() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        const topBtn = document.getElementById('top-install-btn');
-                        if (topBtn) {
-                            topBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> ✅ App Installation Started';
-                        }
-                    }
-                    deferredPrompt = null;
-                });
-            } else {
-                const modal = document.getElementById('install-guide-modal');
-                if (modal) modal.classList.remove('hidden');
-            }
-        }
-
-        function closeInstallGuideModal() {
-            const modal = document.getElementById('install-guide-modal');
-            if (modal) modal.classList.add('hidden');
-        }
 
         function registerServiceWorker() {
             if ('serviceWorker' in navigator) {
