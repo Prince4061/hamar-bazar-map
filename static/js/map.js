@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
 function initApp() {
     setupEventListeners();
     checkAndLoadMapEngine();
+    // Auto-refresh live map locations every 5 seconds (for live delivery tracking)
+    setInterval(fetchMapLocations, 5000);
 }
 
 // ----------------- MAP ENGINE LOADER -----------------
@@ -164,15 +166,18 @@ function fetchMapLocations() {
 }
 
 function updateCounts() {
-    let shops = 0, users = 0, orders = 0;
+    let shops = 0, users = 0, orders = 0, riders = 0;
     allLocations.forEach(item => {
         if (item.type === 'shop') shops++;
         if (item.type === 'user') users++;
         if (item.type === 'order') orders++;
+        if (item.type === 'rider') riders++;
     });
     document.getElementById('count-shops').innerText = shops;
     document.getElementById('count-users').innerText = users;
     document.getElementById('count-orders').innerText = orders;
+    const riderElem = document.getElementById('count-riders');
+    if (riderElem) riderElem.innerText = riders;
 }
 
 function renderMarkers() {
@@ -181,11 +186,13 @@ function renderMarkers() {
     const showShop = document.getElementById('filter-shop').checked;
     const showUser = document.getElementById('filter-user').checked;
     const showOrder = document.getElementById('filter-order').checked;
+    const showRider = document.getElementById('filter-rider') ? document.getElementById('filter-rider').checked : true;
 
     allLocations.forEach(item => {
         if (item.type === 'shop' && !showShop) return;
         if (item.type === 'user' && !showUser) return;
         if (item.type === 'order' && !showOrder) return;
+        if (item.type === 'rider' && !showRider) return;
 
         createMarkerOnMap(item);
     });
@@ -265,6 +272,9 @@ function createMarkerOnMap(item) {
         else iconFaClass = 'fa-user';
     } else if (item.type === 'order') {
         iconFaClass = 'fa-bag-shopping';
+    } else if (item.type === 'rider') {
+        iconFaClass = 'fa-motorcycle';
+        typeClass = 'rider';
     }
     
     // Tag pill generation
@@ -284,6 +294,8 @@ function createMarkerOnMap(item) {
         } else {
             tagPill = `<span class="order-count-pill user-normal"><i class="fa-solid fa-user"></i> ${item.total_orders || 0} Orders</span>`;
         }
+    } else if (item.type === 'rider') {
+        tagPill = `<span class="order-count-pill rider"><i class="fa-solid fa-gauge-high"></i> ${item.speed || 0} km/h • 🔋${item.battery || 100}%</span>`;
     }
 
     const htmlContent = `
@@ -568,6 +580,26 @@ function deleteShop(shopId) {
     }
 }
 
+function deleteRider(riderId) {
+    if (confirm("Are you sure you want to delete this delivery rider location?")) {
+        fetch(`/api/riders/${riderId}`, { method: 'DELETE' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showToast("Delivery rider deleted successfully!");
+                } else {
+                    showToast(data.message || "Failed to delete rider", "error");
+                }
+                document.getElementById('detail-drawer').classList.add('hidden');
+                fetchMapLocations();
+            })
+            .catch(err => {
+                console.error("Error deleting rider:", err);
+                showToast("Error deleting rider: " + err.message, "error");
+            });
+    }
+}
+
 // ----------------- DRAWER / POPUP DETAILS -----------------
 
 function openDrawerForItem(item) {
@@ -577,11 +609,12 @@ function openDrawerForItem(item) {
     let badgeClass = 'shop';
     if (item.type === 'user') badgeClass = 'user';
     if (item.type === 'order') badgeClass = 'order';
+    if (item.type === 'rider') badgeClass = 'rider';
 
     let html = `
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
             <span class="search-result-icon ${badgeClass}" style="width:40px; height:40px; font-size:18px;">
-                <i class="fa-solid fa-${item.type === 'shop' ? 'store' : (item.type === 'user' ? 'user' : 'bag-shopping')}"></i>
+                <i class="fa-solid fa-${item.type === 'shop' ? 'store' : (item.type === 'user' ? 'user' : (item.type === 'rider' ? 'motorcycle' : 'bag-shopping'))}"></i>
             </span>
             <div>
                 <span style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); font-weight:700;">${item.type.toUpperCase()} LOCATION</span>
@@ -665,6 +698,17 @@ function openDrawerForItem(item) {
                 });
         }, 100);
 
+    } else if (item.type === 'rider') {
+        let riderBadge = `<span style="background:rgba(139,92,246,0.2); color:#C4B5FD; border:1px solid rgba(139,92,246,0.6); padding:4px 10px; border-radius:14px; font-size:12px; font-weight:700; display:inline-flex; align-items:center; gap:6px;"><i class="fa-solid fa-motorcycle"></i> ${item.status ? item.status.toUpperCase() : 'ONLINE'}</span>`;
+
+        html += `
+            <div style="margin-bottom:14px;">${riderBadge}</div>
+            <p style="margin-bottom:8px; font-size:14px;"><strong style="color:var(--text-secondary);">Mobile:</strong> <a href="tel:${item.mobile}" style="color:#C4B5FD; text-decoration:none;">${item.mobile}</a></p>
+            <p style="margin-bottom:8px; font-size:14px;"><strong style="color:var(--text-secondary);">Vehicle Number:</strong> ${item.vehicle_number || 'Delivery Bike'}</p>
+            <p style="margin-bottom:8px; font-size:14px;"><strong style="color:var(--text-secondary);">Live Speed:</strong> <span style="color:#FFF; font-weight:700;">${item.speed || 0} km/h</span></p>
+            <p style="margin-bottom:8px; font-size:14px;"><strong style="color:var(--text-secondary);">Phone Battery:</strong> <span style="color:#FFF; font-weight:700;">${item.battery || 100}%</span></p>
+            <p style="margin-bottom:8px; font-size:14px;"><strong style="color:var(--text-secondary);">Last GPS Ping:</strong> <span style="color:var(--text-muted); font-size:12px;">${item.last_updated || 'Just now'}</span></p>
+        `;
     } else if (item.type === 'order') {
         let statusColor = '#F59E0B';
         if (item.status === 'delivered') statusColor = '#10B981';
@@ -711,6 +755,12 @@ function openDrawerForItem(item) {
         html += `
             <button onclick="deleteShop(${item.id})" class="btn btn-danger" style="width:100%; justify-content:center;">
                 <i class="fa-solid fa-trash-can"></i> Delete Shop Location
+            </button>
+        `;
+    } else if (item.type === 'rider') {
+        html += `
+            <button onclick="deleteRider(${item.id})" class="btn btn-danger" style="width:100%; justify-content:center;">
+                <i class="fa-solid fa-trash-can"></i> Delete Rider Location
             </button>
         `;
     }
@@ -794,13 +844,16 @@ function setupEventListeners() {
     const uploadBtn = document.getElementById('upload-db-btn');
     if (uploadBtn) uploadBtn.addEventListener('click', openRestoreDbModal);
 
-    ['filter-shop', 'filter-user', 'filter-order'].forEach(id => {
-        document.getElementById(id).addEventListener('change', (e) => {
-            const chip = e.target.closest('.filter-chip');
-            if (e.target.checked) chip.classList.add('active');
-            else chip.classList.remove('active');
-            renderMarkers();
-        });
+    ['filter-shop', 'filter-user', 'filter-order', 'filter-rider'].forEach(id => {
+        const elem = document.getElementById(id);
+        if (elem) {
+            elem.addEventListener('change', (e) => {
+                const chip = e.target.closest('.filter-chip');
+                if (e.target.checked) chip.classList.add('active');
+                else chip.classList.remove('active');
+                renderMarkers();
+            });
+        }
     });
 
     document.getElementById('close-drawer-btn').addEventListener('click', () => {

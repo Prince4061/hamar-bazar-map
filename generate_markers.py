@@ -59,6 +59,12 @@ def draw_symbol(draw, symbol_type, color):
         # Crown points: (22, 40), (22, 25), (27, 32), (32, 20), (37, 32), (42, 25), (42, 40)
         draw.polygon([(22, 40), (22, 25), (27, 32), (32, 20), (37, 32), (42, 25), (42, 40)], fill=color)
         draw.ellipse([29, 41, 35, 45], fill=color)
+    elif symbol_type == 'rider':
+        # Bike / Scooter
+        draw.ellipse([21, 30, 31, 40], fill=color) # Rear wheel
+        draw.ellipse([33, 30, 43, 40], fill=color) # Front wheel
+        draw.line([(26, 35), (32, 25), (38, 35)], fill=color, width=3) # Body frame
+        draw.line([(32, 25), (30, 20)], fill=color, width=2) # Handlebar
     elif symbol_type == 'order':
         # Shopping Bag
         draw.rectangle([23, 26, 41, 41], fill=color)
@@ -77,6 +83,8 @@ if __name__ == '__main__':
     create_glowing_pin_marker(os.path.join(out_dir, 'user_active.png'), (16, 185, 129, 255), 'user_active', (16, 185, 129, 200))
     # Premium Customer (>10 Orders) - Shimmering Golden Amber with Crown
     create_glowing_pin_marker(os.path.join(out_dir, 'user_premium.png'), (245, 158, 11, 255), 'user_premium', (245, 158, 11, 220))
+    # Delivery Boy Rider - Electric Purple / Violet with Scooter
+    create_glowing_pin_marker(os.path.join(out_dir, 'rider.png'), (139, 92, 246, 255), 'rider', (139, 92, 246, 220))
     # Vivid Amber glow for order
     create_glowing_pin_marker(os.path.join(out_dir, 'order.png'), (245, 158, 11, 255), 'order', (245, 158, 11, 180))
     # Purple glow

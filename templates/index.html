@@ -65,6 +65,12 @@
                     <span class="chip-text">Orders</span>
                     <span class="chip-count" id="count-orders">0</span>
                 </label>
+                <label class="filter-chip rider-chip active">
+                    <input type="checkbox" id="filter-rider" checked>
+                    <span class="chip-dot rider-dot"></span>
+                    <span class="chip-text">Live Riders</span>
+                    <span class="chip-count" id="count-riders">0</span>
+                </label>
             </div>
 
             <!-- Action Controls -->
@@ -72,6 +78,9 @@
                 <button id="add-location-btn" class="btn btn-emerald">
                     <i class="fa-solid fa-plus"></i> Add Location
                 </button>
+                <a href="/rider" target="_blank" class="btn btn-outline" style="text-decoration:none;" title="Delivery Boy Mobile GPS Tracker App">
+                    <i class="fa-solid fa-motorcycle"></i> Rider App
+                </a>
                 <button id="download-db-btn" class="btn btn-outline" title="Download Database Backup (.db)">
                     <i class="fa-solid fa-download"></i> Backup DB
                 </button>
@@ -113,6 +122,10 @@
                         <div class="legend-item">
                             <span class="legend-badge shop"><i class="fa-solid fa-store"></i></span>
                             <span><strong>Tie-Up Shops</strong> — <span style="color:#FCA5A5;">Red</span></span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-badge rider"><i class="fa-solid fa-motorcycle"></i></span>
+                            <span><strong>Live Riders</strong> — <span style="color:#C4B5FD;">Purple</span></span>
                         </div>
                         <div class="legend-item">
                             <span class="legend-badge user-normal"><i class="fa-solid fa-user"></i></span>

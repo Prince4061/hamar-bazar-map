@@ -97,6 +97,22 @@ def init_db(reset=False):
         )
     ''')
     
+    # Delivery Riders Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS riders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            mobile TEXT NOT NULL,
+            vehicle_number TEXT,
+            status TEXT DEFAULT 'online',
+            latitude REAL,
+            longitude REAL,
+            speed REAL DEFAULT 0,
+            battery INTEGER DEFAULT 100,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
     # Seed data if empty
     cursor.execute('SELECT COUNT(*) FROM shops')
     if cursor.fetchone()[0] == 0:
@@ -142,6 +158,15 @@ def init_db(reset=False):
             INSERT INTO orders (user_id, shop_id, amount, status, delivery_latitude, delivery_longitude)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', orders)
+        
+        riders = [
+            ("Ramesh Delivery Rider", "9876543210", "CG 10 AB 1234", "online", 22.1440, 81.8700, 24.5, 92),
+            ("Suresh Delivery Rider", "9876543211", "CG 10 CD 5678", "delivering", 22.1462, 81.8675, 31.0, 78)
+        ]
+        cursor.executemany('''
+            INSERT INTO riders (name, mobile, vehicle_number, status, latitude, longitude, speed, battery)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', riders)
         
     conn.commit()
     conn.close()
@@ -262,29 +287,104 @@ def get_map_locations():
             "lng": row["longitude"]
         })
         
-    # Orders
+    # Active Delivery Riders
     cursor.execute('''
-        SELECT o.id, o.amount, o.status, o.delivery_latitude, o.delivery_longitude,
-               u.name as user_name, s.name as shop_name
-        FROM orders o
-        LEFT JOIN users u ON o.user_id = u.id
-        LEFT JOIN shops s ON o.shop_id = s.id
+        SELECT id, name, mobile, vehicle_number, status, latitude, longitude, speed, battery, last_updated
+        FROM riders
+        WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND status != 'offline'
     ''')
     for row in cursor.fetchall():
         locations.append({
             "id": row["id"],
-            "type": "order",
-            "name": f"Order #{row['id']} - {row['user_name'] or 'Customer'}",
-            "amount": row["amount"],
+            "type": "rider",
+            "name": row["name"],
+            "mobile": row["mobile"],
+            "vehicle_number": row["vehicle_number"],
             "status": row["status"],
-            "user_name": row["user_name"],
-            "shop_name": row["shop_name"],
-            "lat": row["delivery_latitude"],
-            "lng": row["delivery_longitude"]
+            "speed": row["speed"] or 0,
+            "battery": row["battery"] or 100,
+            "last_updated": row["last_updated"],
+            "lat": row["latitude"],
+            "lng": row["longitude"]
         })
         
     conn.close()
     return jsonify(locations)
+
+# ----------------- DELIVERY RIDER ROUTES -----------------
+
+@app.route('/rider')
+def rider_page():
+    return render_template('rider.html')
+
+@app.route('/api/riders', methods=['GET', 'POST'])
+def handle_riders():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    if request.method == 'POST':
+        data = request.json or {}
+        name = data.get('name', '').strip()
+        mobile = data.get('mobile', '').strip()
+        vehicle_number = data.get('vehicle_number', '').strip()
+        
+        if not name or not mobile:
+            conn.close()
+            return jsonify({"status": "error", "message": "Name and mobile number are required"}), 400
+            
+        cursor.execute('''
+            INSERT INTO riders (name, mobile, vehicle_number, status, latitude, longitude)
+            VALUES (?, ?, ?, 'online', 22.1448, 81.8698)
+        ''', (name, mobile, vehicle_number))
+        conn.commit()
+        rider_id = cursor.lastrowid
+        conn.close()
+        return jsonify({"status": "success", "message": f"Delivery rider {name} added!", "rider_id": rider_id})
+        
+    cursor.execute("SELECT * FROM riders")
+    riders = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return jsonify(riders)
+
+@app.route('/api/rider/location', methods=['POST'])
+def update_rider_location():
+    data = request.json or {}
+    rider_id = data.get('rider_id')
+    lat = data.get('latitude')
+    lng = data.get('longitude')
+    speed = data.get('speed', 0)
+    battery = data.get('battery', 100)
+    status = data.get('status', 'online')
+    
+    if not rider_id or lat is None or lng is None:
+        return jsonify({"status": "error", "message": "rider_id, latitude, and longitude are required"}), 400
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE riders
+            SET latitude = ?, longitude = ?, speed = ?, battery = ?, status = ?, last_updated = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (float(lat), float(lng), float(speed), int(battery), status, int(rider_id)))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "message": "Live rider location updated successfully"})
+    except Exception as e:
+        print("Error updating rider location:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/riders/<int:rider_id>', methods=['DELETE', 'POST'])
+def delete_rider(rider_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM riders WHERE id = ?", (rider_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "message": f"Rider #{rider_id} deleted successfully"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 # Detailed User Info endpoint with user's complete order history list
 @app.route('/api/users/<int:user_id>/orders', methods=['GET'])

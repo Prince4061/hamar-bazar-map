@@ -261,6 +261,7 @@ body {
 .shop-dot { background: #EF4444; }
 .user-dot { background: var(--accent-blue); }
 .order-dot { background: var(--accent-amber); }
+.rider-dot { background: #8B5CF6; }
 
 .chip-count {
     background: rgba(255, 255, 255, 0.1);
@@ -542,7 +543,33 @@ body {
     gap: 6px;
 }
 
-.marker-label-tag.shop { border-color: #EF4444; }
+.marker-aura.rider {
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.9) 0%, rgba(139, 92, 246, 0) 70%);
+    box-shadow: 0 0 28px rgba(139, 92, 246, 0.9);
+    animation: riderPulse 1.2s infinite alternate ease-in-out;
+}
+
+@keyframes riderPulse {
+    0% { transform: translateX(-50%) scale(0.9); opacity: 0.8; }
+    100% { transform: translateX(-50%) scale(2.2); opacity: 1; filter: drop-shadow(0 0 10px #8B5CF6); }
+}
+
+.marker-pin-badge.rider {
+    background: linear-gradient(135deg, #8B5CF6, #6D28D9);
+    box-shadow: 0 0 22px #8B5CF6, 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+
+.marker-label-tag.rider { 
+    border-color: #8B5CF6; 
+    box-shadow: 0 0 14px rgba(139, 92, 246, 0.5);
+}
+
+.order-count-pill.rider {
+    background: rgba(139, 92, 246, 0.3);
+    color: #C4B5FD;
+    border-color: rgba(139, 92, 246, 0.6);
+    font-weight: 700;
+}
 .marker-label-tag.user, .marker-label-tag.user-normal { border-color: var(--accent-blue); }
 .marker-label-tag.user-active { border-color: #10B981; }
 .marker-label-tag.user-premium { border-color: #F59E0B; box-shadow: 0 0 12px rgba(245, 158, 11, 0.4); }
@@ -897,6 +924,11 @@ body {
 .legend-badge.shop {
     background: linear-gradient(135deg, #EF4444, #DC2626);
     box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+}
+
+.legend-badge.rider {
+    background: linear-gradient(135deg, #8B5CF6, #6D28D9);
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.8);
 }
 
 .legend-badge.user-active {
