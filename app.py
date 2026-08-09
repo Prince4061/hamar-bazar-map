@@ -315,7 +315,10 @@ def get_map_locations():
 
 @app.route('/rider')
 def rider_page():
-    return render_template('rider.html')
+    response = make_response(render_template('rider.html'))
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    return response
 
 @app.route('/api/riders', methods=['GET', 'POST'])
 def handle_riders():
