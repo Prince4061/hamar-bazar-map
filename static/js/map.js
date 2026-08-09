@@ -252,7 +252,20 @@ class GoogleHTMLOverlayMarker {
 }
 
 function createMarkerOnMap(item) {
-    const iconFaClass = item.type === 'shop' ? 'fa-store' : (item.type === 'user' ? 'fa-user' : 'fa-bag-shopping');
+    let typeClass = item.type;
+    let iconFaClass = 'fa-store';
+    
+    if (item.type === 'shop') {
+        iconFaClass = 'fa-store';
+    } else if (item.type === 'user') {
+        const tier = item.customer_tier || 'normal';
+        typeClass = 'user-' + tier;
+        if (tier === 'premium') iconFaClass = 'fa-crown';
+        else if (tier === 'active') iconFaClass = 'fa-user-check';
+        else iconFaClass = 'fa-user';
+    } else if (item.type === 'order') {
+        iconFaClass = 'fa-bag-shopping';
+    }
     
     // Tag pill generation
     let tagPill = '';
@@ -263,17 +276,24 @@ function createMarkerOnMap(item) {
             tagPill = `<span style="background:rgba(239,68,68,0.2); color:#FCA5A5; font-size:10px; padding:1px 6px; border-radius:10px;">Pending</span>`;
         }
     } else if (item.type === 'user') {
-        tagPill = `<span class="order-count-pill"><i class="fa-solid fa-box"></i> ${item.total_orders || 0} Orders</span>`;
+        const tier = item.customer_tier || 'normal';
+        if (tier === 'premium') {
+            tagPill = `<span class="order-count-pill user-premium"><i class="fa-solid fa-crown"></i> ${item.total_orders || 0} Orders (VIP)</span>`;
+        } else if (tier === 'active') {
+            tagPill = `<span class="order-count-pill user-active"><i class="fa-solid fa-bolt"></i> ${item.total_orders || 0} Orders (Active)</span>`;
+        } else {
+            tagPill = `<span class="order-count-pill user-normal"><i class="fa-solid fa-user"></i> ${item.total_orders || 0} Orders</span>`;
+        }
     }
 
     const htmlContent = `
         <div class="custom-marker-wrapper">
-            <div class="marker-aura ${item.type}"></div>
-            <div class="marker-pin-badge ${item.type}">
+            <div class="marker-aura ${typeClass}"></div>
+            <div class="marker-pin-badge ${typeClass}">
                 <i class="fa-solid ${iconFaClass}"></i>
             </div>
             <div class="marker-tip"></div>
-            <div class="marker-label-tag ${item.type}">
+            <div class="marker-label-tag ${typeClass}">
                 <span>${item.name}</span>
                 ${tagPill}
             </div>
@@ -561,10 +581,21 @@ function openDrawerForItem(item) {
             <p style="margin-bottom:8px; font-size:14px;"><strong style="color:var(--text-secondary);">Total Orders Fulfilled:</strong> <span style="background:rgba(16,185,129,0.2); color:#6EE7B7; padding:2px 8px; border-radius:10px; font-weight:700;">${item.total_fulfilled || 0} Orders</span></p>
         `;
     } else if (item.type === 'user') {
+        const tier = item.customer_tier || 'normal';
+        let tierBadgeHtml = '';
+        if (tier === 'premium') {
+            tierBadgeHtml = `<span style="background:linear-gradient(135deg, #F59E0B, #D97706); color:#FFF; padding:5px 12px; border-radius:14px; font-size:12px; font-weight:800; border:1px solid #FEF08A; box-shadow:0 0 12px rgba(245,158,11,0.6); display:inline-flex; align-items:center; gap:6px;"><i class="fa-solid fa-crown"></i> Premium Customer (>10 Orders)</span>`;
+        } else if (tier === 'active') {
+            tierBadgeHtml = `<span style="background:rgba(16,185,129,0.2); color:#6EE7B7; border:1px solid rgba(16,185,129,0.6); padding:5px 12px; border-radius:14px; font-size:12px; font-weight:700; display:inline-flex; align-items:center; gap:6px;"><i class="fa-solid fa-user-check"></i> Active Customer (>2 Orders)</span>`;
+        } else {
+            tierBadgeHtml = `<span style="background:rgba(59,130,246,0.2); color:#93C5FD; border:1px solid rgba(59,130,246,0.6); padding:5px 12px; border-radius:14px; font-size:12px; font-weight:700; display:inline-flex; align-items:center; gap:6px;"><i class="fa-solid fa-user"></i> Normal Customer (1 Order)</span>`;
+        }
+
         html += `
+            <div style="margin-bottom:14px;">${tierBadgeHtml}</div>
             <p style="margin-bottom:8px; font-size:14px;"><strong style="color:var(--text-secondary);">Mobile:</strong> <a href="tel:${item.mobile}" style="color:var(--accent-blue); text-decoration:none;">${item.mobile}</a></p>
             <p style="margin-bottom:8px; font-size:14px;"><strong style="color:var(--text-secondary);">Address:</strong> ${item.address || 'Takhatpur'}</p>
-            <p style="margin-bottom:8px; font-size:14px;"><strong style="color:var(--text-secondary);">Total Orders Placed:</strong> <span id="drawer-user-order-badge" style="background:rgba(59,130,246,0.2); color:#93C5FD; padding:2px 8px; border-radius:10px; font-weight:700;">${item.total_orders || 0} Orders</span></p>
+            <p style="margin-bottom:8px; font-size:14px;"><strong style="color:var(--text-secondary);">Total Orders Placed:</strong> <span id="drawer-user-order-badge" style="background:rgba(255,255,255,0.1); color:#FFF; padding:2px 8px; border-radius:10px; font-weight:700;">${item.total_orders || 0} Orders</span></p>
 
             <!-- Admin Order Count Edit Controls -->
             <div style="margin-top:14px; padding:12px; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); border-radius:8px;">

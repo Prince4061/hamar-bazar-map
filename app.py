@@ -107,10 +107,10 @@ def init_db(reset=False):
         ''', shops)
         
         users = [
-            ("Rahul Verma", "9755100201", "Ward No. 4, Main Road, Takhatpur", 3, 22.1460, 81.8690),
-            ("Pooja Sahu", "9755100202", "Near Old Bus Stand, Takhatpur", 2, 22.1420, 81.8730),
+            ("Rahul Verma", "9755100201", "Ward No. 4, Main Road, Takhatpur", 1, 22.1460, 81.8690),
+            ("Pooja Sahu", "9755100202", "Near Old Bus Stand, Takhatpur", 3, 22.1420, 81.8730),
             ("Amit Patel", "9755100203", "Naya Para, Ward No. 8, Takhatpur", 1, 22.1490, 81.8650),
-            ("Suman Singh", "9755100204", "Station Road, Takhatpur", 4, 22.1415, 81.8705),
+            ("Suman Singh (VIP)", "9755100204", "Station Road, Takhatpur", 12, 22.1415, 81.8705),
             ("Vikram Yaduvanshi", "9755100205", "College Road, Takhatpur", 5, 22.1472, 81.8740)
         ]
         cursor.executemany('''
@@ -120,14 +120,15 @@ def init_db(reset=False):
         
         orders = [
             (1, 1, 450.00, 'delivered', 22.1460, 81.8690),
-            (1, 2, 320.00, 'pending', 22.1460, 81.8690),
-            (1, 3, 1200.00, 'delivered', 22.1460, 81.8690),
             (2, 2, 820.50, 'pending', 22.1420, 81.8730),
             (2, 4, 150.00, 'delivered', 22.1420, 81.8730),
+            (2, 1, 650.00, 'delivered', 22.1420, 81.8730),
             (3, 4, 1200.00, 'delivered', 22.1490, 81.8650),
             (4, 3, 350.00, 'pending', 22.1415, 81.8705),
             (5, 5, 2100.00, 'cancelled', 22.1472, 81.8740),
-            (5, 1, 680.00, 'delivered', 22.1472, 81.8740)
+            (5, 1, 680.00, 'delivered', 22.1472, 81.8740),
+            (5, 2, 950.00, 'delivered', 22.1472, 81.8740),
+            (5, 4, 420.00, 'delivered', 22.1472, 81.8740)
         ]
         cursor.executemany('''
             INSERT INTO orders (user_id, shop_id, amount, status, delivery_latitude, delivery_longitude)
@@ -210,7 +211,7 @@ def get_map_locations():
             "lng": row["longitude"]
         })
         
-    # Users with combined orders count
+    # Users with combined orders count & customer tier classification
     cursor.execute('''
         SELECT u.id, u.name, u.mobile, u.address, u.manual_order_count, u.latitude, u.longitude,
                COUNT(o.id) as real_orders_count, COALESCE(SUM(o.amount), 0) as total_spent
@@ -224,6 +225,20 @@ def get_map_locations():
         manual_count = row["manual_order_count"] or 0
         final_orders_count = max(real_count, manual_count)
         
+        # Tier logic:
+        # > 10 orders = Premium Customer (Gold)
+        # > 2 orders = Active Customer (Green)
+        # 1 or fewer orders = Normal Customer (Blue)
+        if final_orders_count > 10:
+            customer_tier = "premium"
+            tier_label = "Premium Customer"
+        elif final_orders_count > 2:
+            customer_tier = "active"
+            tier_label = "Active Customer"
+        else:
+            customer_tier = "normal"
+            tier_label = "Normal Customer"
+        
         locations.append({
             "id": row["id"],
             "type": "user",
@@ -232,6 +247,8 @@ def get_map_locations():
             "address": row["address"],
             "manual_order_count": manual_count,
             "total_orders": final_orders_count,
+            "customer_tier": customer_tier,
+            "tier_label": tier_label,
             "total_spent": row["total_spent"],
             "lat": row["latitude"],
             "lng": row["longitude"]
