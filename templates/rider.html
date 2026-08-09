@@ -302,30 +302,49 @@
                     <span class="metric-label"><i class="fa-solid fa-battery-three-quarters"></i> Phone Battery</span>
                     <span class="metric-val" id="battery-val">-- %</span>
                 </div>
-                <div class="metric-box" style="grid-column: span 2;">
+                <div class="metric-box">
                     <span class="metric-label"><i class="fa-solid fa-location-dot"></i> GPS Coordinates</span>
-                    <span class="metric-val" id="coords-val" style="font-size:14px; font-family:monospace;">--</span>
+                    <span class="metric-val" id="coords-val" style="font-size:13px; font-family:monospace;">--</span>
+                </div>
+                <div class="metric-box">
+                    <span class="metric-label"><i class="fa-solid fa-signal"></i> Background Status</span>
+                    <span class="metric-val" id="bg-status-val" style="font-size:13px;">Inactive</span>
                 </div>
             </div>
         </div>
 
         <div class="card" style="padding:16px;">
-            <div style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:8px;">
-                <i class="fa-solid fa-clock-rotate-left" style="color:var(--accent-purple);"></i>
-                <span>Last GPS Ping: <strong id="last-ping-val" style="color:#fff;">Never</strong></span>
+            <div style="font-size:12px; color:var(--text-secondary); display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-clock-rotate-left" style="color:var(--accent-purple);"></i>
+                    <span>Last GPS Ping: <strong id="last-ping-val" style="color:#fff;">Never</strong></span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-tower-broadcast" style="color:var(--accent-emerald);"></i>
+                    <span>Total Pings Sent: <strong id="ping-count-val" style="color:#fff;">0</strong> | Screen-Off Pings: <strong id="bg-ping-count-val" style="color:#10B981;">0</strong></span>
+                </div>
             </div>
         </div>
 
         <div class="footer-note">
-            <i class="fa-solid fa-shield-halved"></i> 100% Free HTML5 GPS Tracking. Location updates are automatically sent every 5 seconds to Hamar Bazar Admin Map.
+            <i class="fa-solid fa-shield-halved"></i> Advanced Background GPS Tracking — Screen band hone par bhi location updates chalu rehti hain. 5-Layer Protection System Active.
         </div>
 
     </div>
 
+    <!-- Hidden silent video element for NoSleep background keep-alive -->
+    <video id="nosleep-video" playsinline loop muted style="position:fixed;top:-1px;left:-1px;width:1px;height:1px;opacity:0.01;"></video>
+
     <script>
+        // ============================================================
+        //  HAMAR BAZAR RIDER — 5-LAYER BACKGROUND GPS TRACKING SYSTEM
+        //  Screen band hone par bhi location updates chalu rehti hain
+        // ============================================================
+
         let isDutyOn = false;
         let watchId = null;
         let updateInterval = null;
+        let backupGpsInterval = null;
         let currentLat = null;
         let currentLng = null;
         let currentSpeed = 0;
@@ -333,27 +352,26 @@
 
         let wakeLock = null;
         let audioCtx = null;
+        let noSleepVideo = null;
         let deferredInstallPrompt = null;
+        let totalPingCount = 0;
+        let bgPingCount = 0;
 
-        // Capture PWA install prompt BEFORE DOMContentLoaded
+        // ==================== PWA INSTALL LOGIC ====================
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredInstallPrompt = e;
             showInstallButton();
-            console.log('PWA install prompt captured!');
         });
 
         window.addEventListener('appinstalled', () => {
-            console.log('PWA installed successfully!');
             deferredInstallPrompt = null;
             hideInstallButton();
         });
 
         function showInstallButton() {
             const btn = document.getElementById('pwa-install-btn');
-            if (btn) {
-                btn.style.display = 'flex';
-            }
+            if (btn) btn.style.display = 'flex';
             const apkBtn = document.getElementById('apk-download-btn');
             if (apkBtn) apkBtn.style.display = 'none';
         }
@@ -370,28 +388,27 @@
             }
             deferredInstallPrompt.prompt();
             const result = await deferredInstallPrompt.userChoice;
-            console.log('PWA install result:', result.outcome);
             if (result.outcome === 'accepted') {
                 deferredInstallPrompt = null;
                 hideInstallButton();
             }
         }
 
+        // ==================== INIT ====================
         document.addEventListener('DOMContentLoaded', () => {
             fetchRidersList();
             initBattery();
             setupVisibilityListener();
             registerServiceWorker();
             checkIfPWAInstalled();
+            noSleepVideo = document.getElementById('nosleep-video');
         });
 
         function checkIfPWAInstalled() {
-            // If running in standalone (already installed), hide install button
             if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
                 hideInstallButton();
                 return;
             }
-            // Show APK fallback if install prompt not available after 3 seconds
             setTimeout(() => {
                 if (!deferredInstallPrompt) {
                     const apkBtn = document.getElementById('apk-download-btn');
@@ -404,24 +421,39 @@
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('/sw-rider.js', { scope: '/' })
                     .then((reg) => {
-                        console.log('Rider Service Worker registered! Scope:', reg.scope);
-                        // Check for updates
+                        console.log('SW registered! Scope:', reg.scope);
                         reg.update();
                     })
-                    .catch((err) => {
-                        console.warn('SW registration failed:', err);
-                    });
+                    .catch((err) => console.warn('SW failed:', err));
             }
         }
 
+        // ============================================================
+        //  LAYER 1: WAKE LOCK API — Screen ko jagte rakhta hai
+        //  Auto-reacquire hota hai jab bhi screen wapas aata hai
+        // ============================================================
         async function requestWakeLock() {
             try {
                 if ('wakeLock' in navigator) {
                     wakeLock = await navigator.wakeLock.request('screen');
-                    console.log("Screen WakeLock Active");
+                    console.log('🔒 WakeLock Active');
+                    updateBgStatus();
+
+                    // Auto-reacquire if system releases it
+                    wakeLock.addEventListener('release', () => {
+                        console.log('🔓 WakeLock Released by system');
+                        wakeLock = null;
+                        updateBgStatus();
+                        // Try to reacquire after a short delay
+                        if (isDutyOn) {
+                            setTimeout(() => {
+                                if (isDutyOn && !wakeLock) requestWakeLock();
+                            }, 1000);
+                        }
+                    });
                 }
             } catch (err) {
-                console.warn("WakeLock Error:", err);
+                console.warn('WakeLock Error:', err);
             }
         }
 
@@ -431,7 +463,53 @@
             }
         }
 
-        function startBackgroundKeepAlive() {
+        // ============================================================
+        //  LAYER 2: NOSLEEP VIDEO — Silent video loop browser ko
+        //  lagta hai media play ho raha hai, isliye page suspend nahi karta
+        //  Yeh sabse reliable technique hai (NoSleep.js jaisi)
+        // ============================================================
+        function startNoSleepVideo() {
+            try {
+                if (!noSleepVideo) return;
+
+                // Create a tiny silent webm video as base64 data URI
+                // This is a 1-second silent video that loops forever
+                const silentVideoBase64 = 'data:video/webm;base64,GkXfo0AgQoaBAUL3gQFC8oEEQvOBCEKCQAR3ZWJtQoeBAkKFgQIYU4BnQN8VSalmQCgq17FAAw9CQE2AQAZ3aGFtbXlXQUAGd2hhbW15RIlACECPQAAAAAAAFlSua0AxrkAu14EBY8WBAZyBACK1nEADdW5khkAFVl9WUDglhohAA1ZQOIOBAeBABrCBlQ==';
+
+                noSleepVideo.src = silentVideoBase64;
+                noSleepVideo.setAttribute('playsinline', '');
+                noSleepVideo.setAttribute('muted', '');
+                noSleepVideo.muted = true;
+                noSleepVideo.loop = true;
+
+                const playPromise = noSleepVideo.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        console.log('🎬 NoSleep Video Playing (Background Protection Active)');
+                    }).catch((e) => {
+                        console.warn('NoSleep video play failed:', e);
+                    });
+                }
+            } catch (e) {
+                console.warn('NoSleep Video Error:', e);
+            }
+        }
+
+        function stopNoSleepVideo() {
+            try {
+                if (noSleepVideo) {
+                    noSleepVideo.pause();
+                    noSleepVideo.removeAttribute('src');
+                    noSleepVideo.load();
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        // ============================================================
+        //  LAYER 3: AUDIO CONTEXT KEEP-ALIVE — Silent oscillator
+        //  Audio thread browser me alag chalta hai, suspend nahi hota
+        // ============================================================
+        function startAudioKeepAlive() {
             try {
                 if (!audioCtx) {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -441,24 +519,134 @@
                 }
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                gain.gain.value = 0.0001; // Silent / Inaudible loop
+                gain.gain.value = 0.0001; // Inaudible
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start();
+                console.log('🔊 Audio KeepAlive Active (Silent)');
             } catch (e) {
-                console.log("Audio keep-alive note:", e);
+                console.log('Audio keep-alive note:', e);
             }
         }
 
-        function setupVisibilityListener() {
-            document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible' && isDutyOn) {
-                    requestWakeLock();
-                    if (currentLat && currentLng) sendLocationToServer();
+        function stopAudioKeepAlive() {
+            try {
+                if (audioCtx) {
+                    audioCtx.close();
+                    audioCtx = null;
                 }
-            });
+            } catch (e) { /* ignore */ }
         }
 
+        // ============================================================
+        //  LAYER 4: PERSISTENT NOTIFICATION — OS ko signal deta hai
+        //  ki app active hai, browser ise important maanta hai
+        // ============================================================
+        async function showPersistentNotification() {
+            try {
+                if (!('Notification' in window)) return;
+
+                let permission = Notification.permission;
+                if (permission === 'default') {
+                    permission = await Notification.requestPermission();
+                }
+
+                if (permission === 'granted') {
+                    // Use Service Worker notification for persistence
+                    const reg = await navigator.serviceWorker.ready;
+                    await reg.showNotification('🛵 Hamar Bazar — Duty ON', {
+                        body: 'Live GPS tracking chal raha hai. Screen band karne par bhi location share hoga.',
+                        icon: '/static/icons/icon-192x192.png',
+                        badge: '/static/icons/icon-192x192.png',
+                        tag: 'hb-rider-duty',
+                        requireInteraction: true,
+                        silent: true,
+                        ongoing: true
+                    });
+                    console.log('🔔 Persistent Notification Active');
+                }
+            } catch (e) {
+                console.warn('Notification Error:', e);
+            }
+        }
+
+        async function hidePersistentNotification() {
+            try {
+                const reg = await navigator.serviceWorker.ready;
+                const notifications = await reg.getNotifications({ tag: 'hb-rider-duty' });
+                notifications.forEach(n => n.close());
+            } catch (e) { /* ignore */ }
+        }
+
+        // ============================================================
+        //  LAYER 5: AGGRESSIVE VISIBILITY CHANGE HANDLER
+        //  Screen on/off hone par sab kuch restart karta hai
+        // ============================================================
+        function setupVisibilityListener() {
+            document.addEventListener('visibilitychange', () => {
+                if (!isDutyOn) return;
+
+                if (document.visibilityState === 'visible') {
+                    // Screen wapas ON hua — sab kuch re-activate karo
+                    console.log('📱 Screen ON — Re-activating all layers');
+                    requestWakeLock();
+                    startNoSleepVideo();
+
+                    // Resume AudioContext if suspended
+                    if (audioCtx && audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
+
+                    // Immediately get fresh GPS position
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            processGpsPosition(pos);
+                            sendLocationToServer(false);
+                        },
+                        () => {},
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                    );
+                } else {
+                    // Screen OFF hua — background mode
+                    console.log('📴 Screen OFF — Background tracking active');
+                    updateBgStatus();
+                }
+            });
+
+            // Also listen for page freeze/resume (newer API)
+            if ('onfreeze' in document) {
+                document.addEventListener('freeze', () => {
+                    console.log('❄️ Page freezing — sending last location');
+                    if (currentLat && currentLng) sendLocationToServer(true);
+                });
+                document.addEventListener('resume', () => {
+                    console.log('🔥 Page resumed — re-starting tracking');
+                    if (isDutyOn) restartGpsTracking();
+                });
+            }
+        }
+
+        function updateBgStatus() {
+            const el = document.getElementById('bg-status-val');
+            if (!el) return;
+
+            if (!isDutyOn) {
+                el.innerText = 'Inactive';
+                el.style.color = '#9CA3AF';
+                return;
+            }
+
+            const layers = [];
+            if (wakeLock) layers.push('WakeLock');
+            if (noSleepVideo && !noSleepVideo.paused) layers.push('NoSleep');
+            if (audioCtx && audioCtx.state === 'running') layers.push('Audio');
+            if (watchId) layers.push('GPS');
+
+            el.innerText = layers.length > 0 ? layers.join(' + ') + ' ✅' : 'Starting...';
+            el.style.color = layers.length >= 3 ? '#10B981' : '#FBBF24';
+        }
+
+        // ==================== RIDER LIST & BATTERY ====================
         function fetchRidersList() {
             fetch('/api/riders')
                 .then(res => res.json())
@@ -475,8 +663,6 @@
                         opt.textContent = `${r.name} (${r.vehicle_number || r.mobile})`;
                         sel.appendChild(opt);
                     });
-
-                    // Restore saved choice
                     const savedRider = localStorage.getItem('hb_selected_rider_id');
                     if (savedRider) sel.value = savedRider;
                 });
@@ -500,10 +686,11 @@
             }
         }
 
+        // ==================== DUTY TOGGLE ====================
         function toggleDuty() {
             const riderId = document.getElementById('rider-select').value;
             if (!riderId) {
-                alert("Please select your Delivery Name first!");
+                alert('Please select your Delivery Name first!');
                 return;
             }
 
@@ -517,12 +704,20 @@
                 btn.className = 'duty-btn btn-stop';
                 btn.innerHTML = '<i class="fa-solid fa-stop"></i> END DUTY & STOP TRACKING';
                 statusBox.className = 'status-badge online';
-                statusText.innerText = 'ON DUTY (Background Tracking Active 🔒)';
+                statusText.innerText = 'ON DUTY — 5-Layer Background Tracking Active 🔒';
                 pulse.className = 'pulse-dot green';
 
-                requestWakeLock();
-                startBackgroundKeepAlive();
-                startGpsTracking();
+                // Activate all 5 layers
+                requestWakeLock();           // Layer 1
+                startNoSleepVideo();         // Layer 2
+                startAudioKeepAlive();       // Layer 3
+                showPersistentNotification(); // Layer 4
+                startGpsTracking();          // GPS + Layer 5 backup
+
+                totalPingCount = 0;
+                bgPingCount = 0;
+
+                setTimeout(updateBgStatus, 1000);
             } else {
                 btn.className = 'duty-btn btn-start';
                 btn.innerHTML = '<i class="fa-solid fa-play"></i> START DUTY & SHARE LOCATION';
@@ -530,11 +725,18 @@
                 statusText.innerText = 'OFF DUTY (Location Sharing Disabled)';
                 pulse.className = 'pulse-dot red';
 
-                releaseWakeLock();
-                stopGpsTracking();
+                // Deactivate all layers
+                releaseWakeLock();            // Layer 1
+                stopNoSleepVideo();           // Layer 2
+                stopAudioKeepAlive();         // Layer 3
+                hidePersistentNotification(); // Layer 4
+                stopGpsTracking();            // GPS + Layer 5
+
+                updateBgStatus();
             }
         }
 
+        // ==================== GPS TRACKING ====================
         let lastSentLat = null;
         let lastSentLng = null;
         let lastPingTime = 0;
@@ -550,66 +752,119 @@
             return R * c;
         }
 
+        function processGpsPosition(pos) {
+            const accuracy = pos.coords.accuracy || 0;
+            const rawLat = parseFloat(pos.coords.latitude.toFixed(6));
+            const rawLng = parseFloat(pos.coords.longitude.toFixed(6));
+            const rawSpeed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
+
+            // Ignore inaccurate GPS pings (> 50 meters inaccuracy)
+            if (accuracy > 50) {
+                console.warn(`Weak GPS (±${accuracy.toFixed(0)}m). Skipping.`);
+                try {
+                    document.getElementById('coords-val').innerText = `${rawLat}, ${rawLng} (Weak ±${Math.round(accuracy)}m)`;
+                } catch(e) {}
+                return false;
+            }
+
+            // Stationary Drift Filter
+            if (lastSentLat !== null && lastSentLng !== null) {
+                const distMoved = calculateDistanceMeters(lastSentLat, lastSentLng, rawLat, rawLng);
+                if (distMoved < 12 && rawSpeed <= 2) {
+                    currentLat = lastSentLat;
+                    currentLng = lastSentLng;
+                    currentSpeed = 0;
+                    try {
+                        document.getElementById('coords-val').innerText = `${currentLat}, ${currentLng} (Locked 📍)`;
+                        document.getElementById('speed-val').innerText = '0 km/h (Rest)';
+                    } catch(e) {}
+                    return true; // Position valid but stationary
+                }
+            }
+
+            currentLat = rawLat;
+            currentLng = rawLng;
+            currentSpeed = rawSpeed;
+
+            try {
+                document.getElementById('coords-val').innerText = `${currentLat}, ${currentLng} (±${Math.round(accuracy)}m)`;
+                document.getElementById('speed-val').innerText = currentSpeed + ' km/h';
+            } catch(e) {}
+
+            return true;
+        }
+
         function startGpsTracking() {
             if (!navigator.geolocation) {
-                alert("Geolocation is not supported by your mobile browser!");
+                alert('Geolocation not supported!');
                 return;
             }
 
+            // Primary: watchPosition for real-time updates
             watchId = navigator.geolocation.watchPosition(
                 (pos) => {
-                    const accuracy = pos.coords.accuracy || 0;
-                    const rawLat = parseFloat(pos.coords.latitude.toFixed(6));
-                    const rawLng = parseFloat(pos.coords.longitude.toFixed(6));
-                    const rawSpeed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0; // m/s to km/h
-
-                    // 1. Ignore inaccurate GPS pings (> 40 meters inaccuracy)
-                    if (accuracy > 40) {
-                        console.warn(`Weak GPS signal (accuracy ${accuracy.toFixed(1)}m). Ignoring noise.`);
-                        document.getElementById('coords-val').innerText = `${rawLat}, ${rawLng} (Weak GPS ±${Math.round(accuracy)}m)`;
-                        return;
+                    if (processGpsPosition(pos)) {
+                        sendLocationToServer(false);
                     }
-
-                    // 2. Stationary Drift Filter: If movement is less than 12 meters & speed is low, keep position locked!
-                    if (lastSentLat !== null && lastSentLng !== null) {
-                        const distMoved = calculateDistanceMeters(lastSentLat, lastSentLng, rawLat, rawLng);
-                        if (distMoved < 12 && rawSpeed <= 2) {
-                            // Phone is stationary! Lock position to eliminate GPS jitter.
-                            currentLat = lastSentLat;
-                            currentLng = lastSentLng;
-                            currentSpeed = 0;
-                            document.getElementById('coords-val').innerText = `${currentLat}, ${currentLng} (Stationary Locked 📍)`;
-                            document.getElementById('speed-val').innerText = '0 km/h (At Rest)';
-                            return;
-                        }
-                    }
-
-                    // Real movement detected
-                    currentLat = rawLat;
-                    currentLng = rawLng;
-                    currentSpeed = rawSpeed;
-
-                    document.getElementById('coords-val').innerText = `${currentLat}, ${currentLng} (±${Math.round(accuracy)}m)`;
-                    document.getElementById('speed-val').innerText = currentSpeed + ' km/h';
-
-                    sendLocationToServer();
                 },
                 (err) => {
-                    console.warn("GPS Error:", err);
-                    document.getElementById('coords-val').innerText = "GPS Error: " + err.message;
+                    console.warn('GPS Error:', err);
+                    try {
+                        document.getElementById('coords-val').innerText = 'GPS Error: ' + err.message;
+                    } catch(e) {}
                 },
                 { enableHighAccuracy: true, timeout: 15000, maximumAge: 3000 }
             );
 
-            // Backup timer: send location ping every 10 seconds if position changed
+            // Backup timer: send cached location every 8 seconds
             updateInterval = setInterval(() => {
-                sendLocationToServer();
-            }, 10000);
+                sendLocationToServer(false);
+            }, 8000);
+
+            // LAYER 5 BACKUP: Aggressive getCurrentPosition polling every 15 seconds
+            // This works even when watchPosition callbacks are throttled in background
+            backupGpsInterval = setInterval(() => {
+                if (!isDutyOn) return;
+
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        console.log('📡 Backup GPS ping (background)');
+                        if (processGpsPosition(pos)) {
+                            sendLocationToServer(true); // Mark as background ping
+                        }
+                    },
+                    (err) => {
+                        console.warn('Backup GPS Error:', err);
+                    },
+                    { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }
+                );
+
+                // Re-activate NoSleep video if it stopped
+                if (noSleepVideo && noSleepVideo.paused && isDutyOn) {
+                    startNoSleepVideo();
+                }
+
+                // Resume AudioContext if suspended
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+
+                updateBgStatus();
+            }, 15000);
+        }
+
+        function restartGpsTracking() {
+            // Clear old watchers and restart fresh
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+            if (updateInterval) clearInterval(updateInterval);
+            if (backupGpsInterval) clearInterval(backupGpsInterval);
+            startGpsTracking();
         }
 
         function stopGpsTracking() {
-            if (watchId) navigator.geolocation.clearWatch(watchId);
-            if (updateInterval) clearInterval(updateInterval);
+            if (watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+            if (updateInterval) { clearInterval(updateInterval); updateInterval = null; }
+            if (backupGpsInterval) { clearInterval(backupGpsInterval); backupGpsInterval = null; }
 
             // Send offline status
             const riderId = document.getElementById('rider-select').value;
@@ -621,20 +876,28 @@
                         rider_id: riderId,
                         latitude: currentLat,
                         longitude: currentLng,
+                        speed: 0,
+                        battery: currentBattery,
                         status: 'offline'
                     })
                 });
             }
         }
 
-        function sendLocationToServer() {
+        // ==================== SEND LOCATION ====================
+        function sendLocationToServer(isBackgroundPing = false) {
             const riderId = document.getElementById('rider-select').value;
             if (!riderId || !currentLat || !currentLng) return;
 
             const now = Date.now();
-            // Don't spam server if last ping was sent less than 3 seconds ago
+            // Don't spam: min 3 second gap between pings
             if (now - lastPingTime < 3000) return;
             lastPingTime = now;
+
+            totalPingCount++;
+            if (isBackgroundPing || document.visibilityState === 'hidden') {
+                bgPingCount++;
+            }
 
             fetch('/api/rider/location', {
                 method: 'POST',
@@ -653,7 +916,15 @@
                 lastSentLat = currentLat;
                 lastSentLng = currentLng;
                 const timeStr = new Date().toLocaleTimeString();
-                document.getElementById('last-ping-val').innerText = timeStr + ' (GPS Signal Verified ✅)';
+                const bgTag = (isBackgroundPing || document.visibilityState === 'hidden') ? ' (BG 📴)' : ' ✅';
+                try {
+                    document.getElementById('last-ping-val').innerText = timeStr + bgTag;
+                    document.getElementById('ping-count-val').innerText = totalPingCount;
+                    document.getElementById('bg-ping-count-val').innerText = bgPingCount;
+                } catch(e) {}
+            })
+            .catch(err => {
+                console.warn('Location send failed:', err);
             });
         }
     </script>
