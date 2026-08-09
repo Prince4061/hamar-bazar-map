@@ -12,6 +12,13 @@ CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config.json')
 TAKHATPUR_CENTER_LAT = 22.1448
 TAKHATPUR_CENTER_LNG = 81.8698
 
+@app.after_request
+def add_header(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response
+
 def get_db_connection():
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
@@ -310,15 +317,19 @@ def update_user_order_count(user_id):
     return jsonify({"status": "success", "message": f"User order count updated to {order_count}"})
 
 # Delete User endpoint
-@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+@app.route('/api/users/<int:user_id>', methods=['DELETE', 'POST'])
 def delete_user(user_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM orders WHERE user_id = ?', (user_id,))
-    cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success", "message": "User deleted successfully"})
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM orders WHERE user_id = ?', (user_id,))
+        cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "message": f"User #{user_id} deleted successfully"})
+    except Exception as e:
+        print(f"Error deleting user {user_id}: {e}")
+        return jsonify({"status": "error", "message": f"Failed to delete user: {str(e)}"}), 500
 
 # Shops CRUD
 @app.route('/api/shops', methods=['GET', 'POST'])

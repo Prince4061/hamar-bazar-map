@@ -150,7 +150,7 @@ function createGoogleMapInstance() {
 // ----------------- DATA FETCH & RENDER -----------------
 
 function fetchMapLocations() {
-    fetch('/api/map/locations')
+    fetch('/api/map/locations?t=' + Date.now(), { cache: 'no-store' })
         .then(res => res.json())
         .then(data => {
             allLocations = data;
@@ -513,9 +513,17 @@ function deleteOrder(orderId) {
         fetch(`/api/orders/${orderId}`, { method: 'DELETE' })
             .then(res => res.json())
             .then(data => {
-                showToast(`Order #${orderId} deleted!`);
+                if (data.status === 'success') {
+                    showToast(`Order #${orderId} deleted successfully!`);
+                } else {
+                    showToast(data.message || "Failed to delete order", "error");
+                }
                 document.getElementById('detail-drawer').classList.add('hidden');
                 fetchMapLocations();
+            })
+            .catch(err => {
+                console.error("Error deleting order:", err);
+                showToast("Error deleting order: " + err.message, "error");
             });
     }
 }
@@ -525,9 +533,17 @@ function deleteUser(userId) {
         fetch(`/api/users/${userId}`, { method: 'DELETE' })
             .then(res => res.json())
             .then(data => {
-                showToast("User location deleted!");
+                if (data.status === 'success') {
+                    showToast("User location deleted successfully!");
+                } else {
+                    showToast(data.message || "Failed to delete user", "error");
+                }
                 document.getElementById('detail-drawer').classList.add('hidden');
                 fetchMapLocations();
+            })
+            .catch(err => {
+                console.error("Error deleting user:", err);
+                showToast("Error deleting user: " + err.message, "error");
             });
     }
 }
@@ -537,9 +553,17 @@ function deleteShop(shopId) {
         fetch(`/api/shops/${shopId}`, { method: 'DELETE' })
             .then(res => res.json())
             .then(data => {
-                showToast("Shop location deleted!");
+                if (data.status === 'success') {
+                    showToast("Shop location deleted successfully!");
+                } else {
+                    showToast(data.message || "Failed to delete shop", "error");
+                }
                 document.getElementById('detail-drawer').classList.add('hidden');
                 fetchMapLocations();
+            })
+            .catch(err => {
+                console.error("Error deleting shop:", err);
+                showToast("Error deleting shop: " + err.message, "error");
             });
     }
 }
