@@ -340,8 +340,25 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            const pwaCard = document.getElementById('pwa-install-card');
-            if (pwaCard) pwaCard.style.display = 'block';
+            const topBtn = document.getElementById('top-install-btn');
+            if (topBtn) {
+                topBtn.innerHTML = '<i class="fa-solid fa-download"></i> 📲 CLICK HERE TO INSTALL APP ON PHONE';
+            }
+        });
+
+        // Check if already running in standalone PWA installed app mode
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+                const topBtn = document.getElementById('top-install-btn');
+                if (topBtn) {
+                    topBtn.style.background = 'rgba(16, 185, 129, 0.2)';
+                    topBtn.style.border = '1px solid rgba(16, 185, 129, 0.5)';
+                    topBtn.style.color = '#34D399';
+                    topBtn.style.animation = 'none';
+                    topBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> ✅ Rider App Installed & Active';
+                    topBtn.onclick = null;
+                }
+            }
         });
 
         function installPwaApp() {
@@ -349,12 +366,15 @@
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then((choiceResult) => {
                     if (choiceResult.outcome === 'accepted') {
-                        console.log('User installed Rider PWA App');
+                        const topBtn = document.getElementById('top-install-btn');
+                        if (topBtn) {
+                            topBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> ✅ App Installation Started';
+                        }
                     }
                     deferredPrompt = null;
                 });
             } else {
-                alert("App Install karne ke liye:\n\n1. Chrome ke Top Right 3 Dots (Menu) par tap karein.\n2. 'Add to Home Screen' ya 'Install App' select karein!");
+                console.log("Direct PWA installation requested");
             }
         }
 
