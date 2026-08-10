@@ -18,6 +18,9 @@ def add_header(response):
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '-1'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, DELETE'
     return response
 
 def get_db_connection():
@@ -359,8 +362,10 @@ def handle_riders():
     conn.close()
     return jsonify(riders)
 
-@app.route('/api/rider/location', methods=['POST'])
+@app.route('/api/rider/location', methods=['POST', 'OPTIONS'])
 def update_rider_location():
+    if request.method == 'OPTIONS':
+        return jsonify({"status": "ok"}), 200
     data = request.json or {}
     rider_id = data.get('rider_id')
     lat = data.get('latitude')
