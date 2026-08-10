@@ -707,7 +707,10 @@
                 statusText.innerText = 'ON DUTY — 5-Layer Background Tracking Active 🔒';
                 pulse.className = 'pulse-dot green';
 
-                // Activate all 5 layers
+                // Activate all 5 layers + Native Android Service if available
+                if (window.AndroidBridge && window.AndroidBridge.startRiderService) {
+                    window.AndroidBridge.startRiderService(riderId, window.location.origin + '/api/rider/location');
+                }
                 requestWakeLock();           // Layer 1
                 startNoSleepVideo();         // Layer 2
                 startAudioKeepAlive();       // Layer 3
@@ -726,6 +729,9 @@
                 pulse.className = 'pulse-dot red';
 
                 // Deactivate all layers
+                if (window.AndroidBridge && window.AndroidBridge.stopRiderService) {
+                    window.AndroidBridge.stopRiderService();
+                }
                 releaseWakeLock();            // Layer 1
                 stopNoSleepVideo();           // Layer 2
                 stopAudioKeepAlive();         // Layer 3

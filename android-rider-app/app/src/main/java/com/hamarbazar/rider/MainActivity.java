@@ -51,20 +51,20 @@ public class MainActivity extends Activity {
 
     private void requestRiderPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            String[] permissions;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                permissions = new String[]{
+                String[] permissions = new String[]{
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION,
                     Manifest.permission.POST_NOTIFICATIONS
                 };
+                requestPermissions(permissions, PERMISSION_REQUEST_CODE);
             } else {
-                permissions = new String[]{
+                String[] permissions = new String[]{
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION
                 };
+                requestPermissions(permissions, PERMISSION_REQUEST_CODE);
             }
-            requestPermissions(permissions, PERMISSION_REQUEST_CODE);
         }
     }
 
