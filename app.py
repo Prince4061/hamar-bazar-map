@@ -115,6 +115,23 @@ def init_db(reset=False):
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    conn.commit()
+
+    # Ensure real riders always exist in database
+    default_real_riders = [
+        ("rahul", "9238012912", "CG 10 HB 0001", "online", 22.1455, 81.8705, 0.0, 100),
+        ("Deeepak Sahu", "9202678235", "CG 10 HB 0002", "online", 22.1448, 81.8698, 0.0, 100),
+        ("om mishra", "8770260333", "CG 10 HB 0003", "online", 22.1448, 81.8698, 0.0, 100),
+        ("Krish Patel", "9981808683", "CG 10 HB 0004", "online", 22.1448, 81.8698, 0.0, 100),
+    ]
+    for r_name, r_mob, r_veh, r_stat, r_lat, r_lng, r_spd, r_bat in default_real_riders:
+        cursor.execute("SELECT id FROM riders WHERE mobile = ? OR name = ?", (r_mob, r_name))
+        if not cursor.fetchone():
+            cursor.execute('''
+                INSERT INTO riders (name, mobile, vehicle_number, status, latitude, longitude, speed, battery)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (r_name, r_mob, r_veh, r_stat, r_lat, r_lng, r_spd, r_bat))
+    conn.commit()
     
     # Seed data if empty
     cursor.execute('SELECT COUNT(*) FROM shops')
@@ -164,7 +181,11 @@ def init_db(reset=False):
         
         riders = [
             ("Ramesh Delivery Rider", "9876543210", "CG 10 AB 1234", "online", 22.1440, 81.8700, 24.5, 92),
-            ("Suresh Delivery Rider", "9876543211", "CG 10 CD 5678", "delivering", 22.1462, 81.8675, 31.0, 78)
+            ("Suresh Delivery Rider", "9876543211", "CG 10 CD 5678", "delivering", 22.1462, 81.8675, 31.0, 78),
+            ("rahul", "9238012912", "CG 10 HB 0001", "online", 22.1455, 81.8705, 0.0, 100),
+            ("Deeepak Sahu", "9202678235", "CG 10 HB 0002", "online", 22.1448, 81.8698, 0.0, 100),
+            ("om mishra", "8770260333", "CG 10 HB 0003", "online", 22.1448, 81.8698, 0.0, 100),
+            ("Krish Patel", "9981808683", "CG 10 HB 0004", "online", 22.1448, 81.8698, 0.0, 100)
         ]
         cursor.executemany('''
             INSERT INTO riders (name, mobile, vehicle_number, status, latitude, longitude, speed, battery)
