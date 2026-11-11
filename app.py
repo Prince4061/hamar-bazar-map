@@ -385,6 +385,13 @@ def update_rider_location():
             SET latitude = ?, longitude = ?, speed = ?, battery = ?, status = ?, last_updated = CURRENT_TIMESTAMP
             WHERE id = ?
         ''', (float(lat), float(lng), float(speed), int(battery), status, int(rider_id)))
+        if cursor.rowcount == 0:
+            rider_name = data.get('rider_name') or data.get('name') or f"Rider #{rider_id}"
+            rider_mobile = data.get('mobile') or data.get('phone') or ""
+            cursor.execute('''
+                INSERT INTO riders (id, name, mobile, status, latitude, longitude, speed, battery, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (int(rider_id), rider_name, rider_mobile, status, float(lat), float(lng), float(speed), int(battery)))
         conn.commit()
         conn.close()
         return jsonify({"status": "success", "message": "Live rider location updated successfully"})
