@@ -394,25 +394,55 @@ def update_rider_location():
     speed = data.get('speed', 0)
     battery = data.get('battery', 100)
     status = data.get('status', 'online')
+    mobile = str(data.get('mobile') or data.get('phone') or '').strip().replace(" ", "").replace("-", "")
+    name = str(data.get('name') or data.get('rider_name') or '').strip()
     
-    if not rider_id or lat is None or lng is None:
-        return jsonify({"status": "error", "message": "rider_id, latitude, and longitude are required"}), 400
+    if (not rider_id and not mobile) or lat is None or lng is None:
+        return jsonify({"status": "error", "message": "rider_id or mobile, latitude, and longitude are required"}), 400
         
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('''
-            UPDATE riders
-            SET latitude = ?, longitude = ?, speed = ?, battery = ?, status = ?, last_updated = CURRENT_TIMESTAMP
-            WHERE id = ?
-        ''', (float(lat), float(lng), float(speed), int(battery), status, int(rider_id)))
-        if cursor.rowcount == 0:
-            rider_name = data.get('rider_name') or data.get('name') or f"Rider #{rider_id}"
-            rider_mobile = data.get('mobile') or data.get('phone') or ""
+
+        updated = False
+        # 1. Match by mobile number (exact 1-to-1 match across databases)
+        if mobile:
             cursor.execute('''
-                INSERT INTO riders (id, name, mobile, status, latitude, longitude, speed, battery, last_updated)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ''', (int(rider_id), rider_name, rider_mobile, status, float(lat), float(lng), float(speed), int(battery)))
+                UPDATE riders
+                SET latitude = ?, longitude = ?, speed = ?, battery = ?, status = ?, last_updated = CURRENT_TIMESTAMP
+                WHERE mobile = ? OR mobile LIKE ?
+            ''', (float(lat), float(lng), float(speed), int(battery), status, mobile, f"%{mobile[-10:]}"))
+            if cursor.rowcount > 0:
+                updated = True
+
+        # 2. Match by rider name
+        if not updated and name:
+            cursor.execute('''
+                UPDATE riders
+                SET latitude = ?, longitude = ?, speed = ?, battery = ?, status = ?, last_updated = CURRENT_TIMESTAMP
+                WHERE name LIKE ?
+            ''', (float(lat), float(lng), float(speed), int(battery), status, f"%{name}%"))
+            if cursor.rowcount > 0:
+                updated = True
+
+        # 3. Match by ID
+        if not updated and rider_id:
+            cursor.execute('''
+                UPDATE riders
+                SET latitude = ?, longitude = ?, speed = ?, battery = ?, status = ?, last_updated = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (float(lat), float(lng), float(speed), int(battery), status, int(rider_id)))
+            if cursor.rowcount > 0:
+                updated = True
+
+        # 4. If rider still not found, insert fresh record with live coordinates
+        if not updated:
+            r_name = name or (f"Rider #{rider_id}" if rider_id else "Live Rider")
+            cursor.execute('''
+                INSERT INTO riders (name, mobile, status, latitude, longitude, speed, battery, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (r_name, mobile, status, float(lat), float(lng), float(speed), int(battery)))
+
         conn.commit()
         conn.close()
         return jsonify({"status": "success", "message": "Live rider location updated successfully"})
